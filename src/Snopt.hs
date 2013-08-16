@@ -1,17 +1,77 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
+module Main ( main, mallocWorkspace, freeWorkspace, Workspace(..) ) where
+
+import Control.Monad ( when )
 import Foreign.C ( CInt(..), CDouble(..), CChar(..) )
+import Foreign.C.String
 import Foreign.Ptr ( Ptr, FunPtr )
 import Foreign.Marshal
-import Foreign.Marshal.Alloc
 import Foreign.Storable
 
-type SnInteger = Int
+type SnInteger = CInt
 type SnDoubleReal = CDouble
 type SnChar = CChar
-type SnFtnLen = Int
-type SnInt = CInt
+type SnFtnLen = CInt
+--type SnInt = CInt
+
+type Snopta_ = Ptr SnInteger -- ( integer *start
+               -> Ptr SnInteger    -- , integer *nef
+               -> Ptr SnInteger    -- , integer *n
+               -> Ptr SnInteger    -- , integer *nxname
+               -> Ptr SnInteger    -- , integer *nfname
+               -> Ptr SnDoubleReal    -- , doublereal *obja
+               -> Ptr SnInteger    -- , integer *objrow
+               -> Ptr SnChar    -- , char *prob
+               -> FunPtr U_fp    -- , U_fp usrfun
+               -> Ptr SnInteger    -- , integer *iafun
+               -> Ptr SnInteger    -- , integer *javar
+               -> Ptr SnInteger    -- , integer *lena
+               -> Ptr SnInteger    -- , integer *nea
+               -> Ptr SnDoubleReal    -- , doublereal *a
+               -> Ptr SnInteger    -- , integer *igfun
+               -> Ptr SnInteger    -- , integer *jgvar
+               -> Ptr SnInteger    -- , integer *leng
+               -> Ptr SnInteger    -- , integer *neg
+               -> Ptr SnDoubleReal    -- , doublereal *xlow
+               -> Ptr SnDoubleReal    -- , doublereal *xupp
+               -> Ptr SnChar    -- , char *xnames
+               -> Ptr SnDoubleReal    -- , doublereal *flow
+               -> Ptr SnDoubleReal    -- , doublereal *fupp
+               -> Ptr SnChar    -- , char *fnames
+               -> Ptr SnDoubleReal    -- , doublereal *x
+               -> Ptr SnInteger    -- , integer *xstate
+               -> Ptr SnDoubleReal    -- , doublereal *xmul
+               -> Ptr SnDoubleReal    -- , doublereal *f
+               -> Ptr SnInteger    -- , integer *fstate
+               -> Ptr SnDoubleReal    -- , doublereal *fmul
+               -> Ptr SnInteger    -- , integer *inform
+               -> Ptr SnInteger    -- , integer *mincw
+               -> Ptr SnInteger    -- , integer *miniw
+               -> Ptr SnInteger    -- , integer *minrw
+               -> Ptr SnInteger    -- , integer *ns
+               -> Ptr SnInteger    -- , integer *ninf
+               -> Ptr SnDoubleReal    -- , doublereal *sinf
+               -> Ptr SnChar    -- , char *cu
+               -> Ptr SnInteger    -- , integer *lencu
+               -> Ptr SnInteger    -- , integer *iu
+               -> Ptr SnInteger    -- , integer *leniu
+               -> Ptr SnDoubleReal    -- , doublereal *ru
+               -> Ptr SnInteger    -- , integer *lenru
+               -> Ptr SnChar    -- , char *cw
+               -> Ptr SnInteger    -- , integer *lencw
+               -> Ptr SnInteger    -- , integer *iw
+               -> Ptr SnInteger    -- , integer *leniw
+               -> Ptr SnDoubleReal    -- , doublereal *rw
+               -> Ptr SnInteger    -- , integer *lenrw
+               -> SnFtnLen    -- , ftnlen prob_len
+               -> SnFtnLen    -- , ftnlen xnames_le
+               -> SnFtnLen    -- , ftnlen fnames_le
+               -> SnFtnLen    -- , ftnlen cu_len
+               -> SnFtnLen    -- , ftnlen cw_len );
+               -> IO () -- extern int snopta_
+foreign import ccall safe "snopta_" c_snopta_ :: Snopta_
 
 type SnInit_ = Ptr SnInteger -- ( integer *iPrint
                -> Ptr SnInteger -- , integer *iSumm
@@ -21,9 +81,29 @@ type SnInit_ = Ptr SnInteger -- ( integer *iPrint
                -> Ptr SnInteger -- , integer *leniw
                -> Ptr SnDoubleReal -- , doublereal *rw
                -> Ptr SnInteger -- , integer *lenrw
---               -> SnFtnLen -- , ftnlen cw_len)
+               -> SnFtnLen -- , ftnlen cw_len)
                -> IO () -- SnInt -- extern int sninit_
 foreign import ccall unsafe "sninit_" c_sninit_ :: SnInit_
+
+type SnSet_ a = Ptr SnChar -- ( char *buffer
+                -> Ptr a         -- , integer *{ri}value
+                -> Ptr SnInteger -- , integer *iprint
+                -> Ptr SnInteger -- , integer *isumm
+                -> Ptr SnInteger -- , integer *inform
+                -> Ptr SnChar -- , char *cw
+                -> Ptr SnInteger -- , integer *lencw
+                -> Ptr SnInteger -- , integer *iw
+                -> Ptr SnInteger -- , integer *leniw
+                -> Ptr SnDoubleReal -- , doublereal *rw
+                -> Ptr SnInteger -- , integer *lenrw
+                -> SnFtnLen -- , ftnlen buffer_len
+                -> SnFtnLen -- , ftnlen cw_len );
+                -> IO () -- extern int snseti_
+
+--type SnSeti_ = SnSet_ SnInteger
+--type SnSetr_ = SnSet_ SnDoubleReal
+foreign import ccall unsafe "snseti_" c_snseti_ :: SnSet_ SnInteger
+foreign import ccall unsafe "snsetr_" c_snsetr_ :: SnSet_ SnDoubleReal
 
 type SnJac_ = Ptr SnInteger -- ( integer *iExit
               -> Ptr SnInteger -- , integer *nef
@@ -56,10 +136,10 @@ type SnJac_ = Ptr SnInteger -- ( integer *iExit
               -> Ptr SnInteger -- , integer *leniw
               -> Ptr SnDoubleReal -- , doublereal *rw
               -> Ptr SnInteger -- , integer *lenrw
---              -> SnFtnLen -- , ftnlen cu_len
---              -> SnFtnLen -- , ftnlen cw_len);
+              -> SnFtnLen -- , ftnlen cu_len
+              -> SnFtnLen -- , ftnlen cw_len);
               -> IO () -- extern int snjac_
-foreign import ccall unsafe "snjac_" c_snjac_ :: SnJac_
+foreign import ccall safe "snjac_" c_snjac_ :: SnJac_
 
 type U_fp = Ptr SnInteger       --  ( integer    *Status
             -> Ptr SnInteger    --  , integer *n
@@ -81,71 +161,98 @@ type U_fp = Ptr SnInteger       --  ( integer    *Status
 foreign import ccall "wrapper"
   wrap :: U_fp -> IO (FunPtr U_fp)
 
+data Workspace = Workspace { wsCw :: Ptr SnChar
+                           , wsIw :: Ptr SnInteger
+                           , wsRw :: Ptr SnDoubleReal
+                           , wsNcw :: Ptr SnInteger
+                           , wsNiw :: Ptr SnInteger
+                           , wsNrw :: Ptr SnInteger
+                           }
+mallocWorkspace :: SnInteger -> SnInteger -> SnInteger -> IO Workspace
+mallocWorkspace lencw leniw lenrw = do
+  ncw <- new lencw
+  niw <- new leniw
+  nrw <- new lenrw
+  cw <- mallocArray (fromIntegral lencw)
+  iw <- mallocArray (fromIntegral leniw)
+  rw <- mallocArray (fromIntegral lenrw)
+  return $ Workspace cw iw rw ncw niw nrw
+
+freeWorkspace :: Workspace -> IO ()
+freeWorkspace (Workspace cw iw rw ncw niw nrw) = do
+  mapM_ free [ncw,niw,nrw]
+  free cw
+  free iw
+  free rw
+
+printval :: SnInteger
+printval = 0
+
+summaryval :: SnInteger
+summaryval = 6
+
+
 userf' :: U_fp
 userf' _ _ x _ _ f _ _ _ _ _ _ _ _ _ = do
   x0 <- peekElemOff x 0
   x1 <- peekElemOff x 1
-  x2 <- peekElemOff x 2
   pokeElemOff f 0 (x1)
   pokeElemOff f 1 (x0*x0 + 4*x1*x1)
   pokeElemOff f 2 ((x0 - 2)*(x0 - 2) + x1*x1)
 
-toy0 = undefined
-  where
-    nF = 3
-    objRow = 1
-    n = 2
-    objAdd = 0
-    xlow  = [    0, -1e12]
-    xhigh = [ 1e12,  1e12]
-    fstate = [0,0,0]
-    flow = [-1e12,-1e12,-1e12]
-    fupp = [ 1e12, 4, 5]
-    fmul = [0,0,0]
-    f = [0,0,0]
-    x = [1,1]
-    prob = "sntoy1"
-    
+setOptionI :: Workspace -> String -> SnInteger -> IO ()
+setOptionI (Workspace cw iw rw lencw leniw lenrw) name value = do
+  iPrt' <- new printval
+  iSum' <- new summaryval
+  errors' <- new 0
+  (name',bufferlen) <- newCStringLen name
+  value' <- new value
+
+  cw_len <- peek lencw
+  c_snseti_ name' value' iPrt' iSum' errors' cw lencw iw leniw rw lenrw (fromIntegral bufferlen) cw_len
+  errors <- peek errors'
+
+  free iPrt'
+  free iSum'
+  free errors'
+  free name'
+  free value'
+
+  when (errors /= 0) $ error $ "setOption: " ++ show name ++ " = " ++ show value
+
+snInit :: Workspace -> IO ()
+snInit (Workspace cw iw rw lencw leniw lenrw) = do
+  iPrt' <- new printval
+  iSum' <- new summaryval
+  cw_len <- peek lencw
+  c_sninit_ iPrt' iSum' cw lencw iw leniw rw lenrw cw_len
+  free iPrt'
+  free iSum'
 
 main :: IO ()
 main = do
-  let lencw' = 500
-      leniw' = 10000
-      lenrw' = 20000
-  iSumm <- new 6
-  iPrint <- new 0
-  lencw <- new lencw'
-  leniw <- new leniw'
-  lenrw <- new lenrw'
-  cw <- mallocArray lencw'
-  iw <- mallocArray leniw'
-  rw <- mallocArray lenrw'
---  let cw_len = 8*n
-  c_sninit_ iPrint iSumm cw lencw iw leniw rw lenrw -- cw_len
+  workspace <- mallocWorkspace (8*500) 10000 20000
+  snInit workspace
 
-
+  ----------- toy0 --------
   nF <- new 3
   objRow <- new (1::SnInteger)
   n <- new 2
   objAdd <- new (0::SnDoubleReal)
   xlow <- newArray [    0, -1e12]
   xupp <- newArray [ 1e12,  1e12]
-  fstate <- newArray [0,0,0::SnDoubleReal]
+  fstate <- newArray [0,0,0]
   flow <- newArray [-1e12,-1e12,-1e12::SnDoubleReal]
   fupp <- newArray [ 1e12, 4, 5::SnDoubleReal]
   fmul <- newArray [0,0,0::SnDoubleReal]
   f <- newArray [0,0,0::SnDoubleReal]
   x <- newArray [1,1]
-  prob <- newArray "sntoy1"
+  (prob,prob_len) <- newCStringLen "sntoy woo"
 
   userf <- wrap userf'
 
-  let cu = cw
-      iu = iw
-      ru = rw
-      lencu = lencw
-      leniu = leniw
-      lenru = lenrw
+  let Workspace cu iu ru lencu leniu lenru = workspace
+      Workspace cw iw rw lencw leniw lenrw = workspace
       lenA' = 10
       lenG' = 10
   mincw <- malloc
@@ -156,85 +263,58 @@ main = do
   lenG <- new lenG'
   neG <- malloc
   neA <- malloc
-  a <- mallocArray lenA'
-  iAfun <- mallocArray lenA'
-  jAvar <- mallocArray lenA'
-  jGvar <- mallocArray lenG'
-  iGfun <- mallocArray lenG'
+  a <- mallocArray (fromIntegral lenA')
+  iAfun <- mallocArray (fromIntegral lenA')
+  jAvar <- mallocArray (fromIntegral lenA')
+  jGvar <- mallocArray (fromIntegral lenG')
+  iGfun <- mallocArray (fromIntegral lenG')
+  cu_len <- peek lencu
+  cw_len <- peek lencw
   c_snjac_ info nF n userf
     iAfun jAvar lenA neA a
     iGfun jGvar lenG neG
     x xlow xupp mincw miniw minrw
     cu lencu iu leniu ru lenru
     cw lencw iw leniw rw lenrw
+    cu_len cw_len
+  info' <- peek info
+  putStrLn $ "info: " ++ show info'
+
+  setOptionI workspace "Derivative option" 0
 
 
-
-
-
-
---foreign import ccall unsafe "cplex.h CPXopenCPLEX" c_CPXopenCPLEX :: Ptr CInt -> IO (Ptr CPXENV)
---foreign import ccall unsafe "cplex.h CPXcloseCPLEX" c_CPXcloseCPLEX :: Ptr (Ptr CPXENV) -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXcreateprob" c_CPXcreateprob ::
---  Ptr CPXENV -> Ptr CInt -> Ptr CChar -> IO (Ptr CPXLP)
---foreign import ccall unsafe "cplex.h CPXfreeprob" c_CPXfreeprob ::
---  Ptr CPXENV -> Ptr (Ptr CPXLP) -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXnewrows" c_CPXnewrows ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt -> Ptr CDouble -> Ptr CChar -> Ptr CDouble -> Ptr (Ptr CChar) -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXaddrows" c_CPXaddrows ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt -> CInt -> CInt -> Ptr CDouble -> Ptr CChar -> Ptr CInt -> Ptr CInt -> Ptr CDouble -> Ptr (Ptr CChar) -> Ptr (Ptr CChar) -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXnewcols" c_CPXnewcols ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt -> Ptr CDouble -> Ptr CDouble -> Ptr CDouble -> Ptr CChar -> Ptr (Ptr CChar) -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXaddcols" c_CPXaddcols ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt -> CInt -> Ptr CDouble -> Ptr CInt -> Ptr CInt -> Ptr CDouble -> Ptr CDouble -> Ptr CDouble -> Ptr (Ptr CChar) -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXchgcoeflist" c_CPXchgcoeflist ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt -> Ptr CInt -> Ptr CInt -> Ptr CDouble -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXchgcoef" c_CPXchgcoef ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt -> CInt -> CDouble -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXgeterrorstring" c_CPXgeterrorstring ::
---  Ptr CPXENV -> CInt -> Ptr CChar -> IO ()
---
---foreign import ccall unsafe "cplex.h CPXgetstatstring" c_CPXgetstatstring ::
---  Ptr CPXENV -> CInt -> Ptr CChar -> IO ()
---
---foreign import ccall unsafe "cplex.h CPXsetintparam" c_CPXsetintparam ::
---  Ptr CPXENV -> CInt -> CInt -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXgetnumcols" c_CPXgetnumcols ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt
---
---foreign import ccall unsafe "cplex.h CPXgetnumrows" c_CPXgetnumrows ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt
---
---foreign import ccall unsafe "cplex.h CPXcopylp" c_CPXcopylp ::
---  Ptr CPXENV -> Ptr CPXLP -> CInt -> -- (CPXCENVptr env, CPXLPptr lp, int numcols,
---  CInt -> CInt -> Ptr CDouble ->     --  int numrows, int objsense, const double *objective,
---  Ptr CDouble -> Ptr CChar ->        --  const double *rhs, const char *sense,
---  Ptr CInt -> Ptr CInt ->            --  const int *matbeg, const int *matcnt,
---  Ptr CInt -> Ptr CDouble ->         --  const int *matind, const double *matval,
---  Ptr CDouble -> Ptr CDouble ->      --  const double *lb, const double *ub,
---  Ptr CDouble                        --  const double *rngval);
---  -> IO CInt
---
---
---foreign import ccall unsafe "cplex.h CPXcopyquad" c_CPXcopyquad ::
---  Ptr CPXENV -> Ptr CPXLP -> Ptr CInt -> -- (CPXCENVptr env, CPXLPptr lp, const int *qmatbeg, 
---  Ptr CInt -> Ptr CInt ->                --  const int *qmatcnt, const int *qmatind,
---  Ptr CDouble ->                         --  const double *qmatval);
---  IO CInt
---
---foreign import ccall unsafe "cplex.h CPXqpopt" c_CPXqpopt ::
---  Ptr CPXENV -> Ptr CPXLP -> IO CInt
---
---foreign import ccall unsafe "cplex.h CPXsolution" c_CPXsolution ::
---  Ptr CPXENV -> Ptr CPXLP -> Ptr CInt ->       -- (CPXCENVptr env, CPXCLPptr lp, int *lpstat_p,
---  Ptr CDouble -> Ptr CDouble -> Ptr CDouble -> --  double *objval_p, double *x, double *pi,
---  Ptr CDouble -> Ptr CDouble -> IO CInt        --  double *slack, double *dj);
+  ----------------------- SNOPTA -------------------
+  let nxname' = 1
+      nfname' = 1
+      maxn = 10
+  xstate <- newArray [0,0]
+  xmul <- mallocArray maxn
+  nxname <- new nxname'
+  xnames <- mallocArray (fromIntegral nxname')
+  nfname <- new nfname'
+  fnames <- mallocArray (fromIntegral nfname')
+  start <- new 0
+  ns <- malloc
+  ninf <- malloc
+  sinf <- malloc
+  cu_len' <- peek lencu
+  cw_len' <- peek lencw
+  c_snopta_ start nF n nxname nfname
+    objAdd objRow prob userf
+    iAfun jAvar lenA neA a
+    iGfun jGvar lenG neG
+    xlow xupp xnames flow fupp fnames
+    x xstate xmul f fstate fmul
+    info mincw miniw minrw
+    ns ninf sinf
+    cu lencu iu leniu ru lenru
+    cw lencw iw leniw rw lenrw
+    (fromIntegral prob_len) (8*nxname') (8*nfname') cu_len' cw_len'
+  info'' <- peek info
+  ns' <- peek ns
+  ninf' <- peek ninf
+  sinf' <- peek sinf
+  putStrLn $ "info: " ++ show info''
+  putStrLn $ "ns: " ++ show ns'
+  putStrLn $ "ninf: " ++ show ninf'
+  putStrLn $ "sinf: " ++ show sinf'

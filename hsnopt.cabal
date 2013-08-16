@@ -28,10 +28,12 @@ executable testme
   -- other-modules:       
   build-depends:       base ==4.6.*
 
-----  Extra-libraries: snopt_c snprint_c blas_c
---  Extra-libraries: snopt snprint blas
+  Ghc-options: -O0
+--  Ghc-options: -fsimpl-tick-factor=500
+--  Extra-libraries: snopt_c snprint_c blas_c
+  Extra-libraries: snopt snprint blas
 --  Ghc-options: -pgml icpc
 ----  Ghc-options: -optl-licpcfoo -optl-lstdc++
---  Ghc-options: -optl-L/opt/intel/composer_xe_2013.1.117/compiler/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/ipp/../compiler/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/ipp/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/mkl/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/tbb/lib/intel64 -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../x86_64-linux-gnu/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../lib/ -optl-L/lib/x86_64-linux-gnu/ -optl-L/lib/../lib64 -optl-L/lib/../lib/ -optl-L/usr/lib/x86_64-linux-gnu/ -optl-L/usr/lib/../lib/ -optl-L/opt/intel/composer_xe_2013.1.117/compiler/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/ipp/../compiler/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/ipp/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/mkl/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/tbb/lib/intel64/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../ -optl-L/lib64 -optl-L/lib/ -optl-L/usr/lib -optl-L/usr/lib/i386-linux-gnu -optl-lifport -optl-lifcore -optl-limf -optl-lsvml -optl-lm -optl-lipgo -optl-lirc -optl-lpthread -optl-lirc_s -optl-ldl
-----  Extra-lib-dirs:  /home/ghorn/snopt7/lib
---  Extra-lib-dirs:  /home/ghorn/snopt7/lib
+  Ghc-options: -optl-L/opt/intel/composer_xe_2013.1.117/compiler/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/ipp/../compiler/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/ipp/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/mkl/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/tbb/lib/intel64 -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../x86_64-linux-gnu/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../lib/ -optl-L/lib/x86_64-linux-gnu/ -optl-L/lib/../lib64 -optl-L/lib/../lib/ -optl-L/usr/lib/x86_64-linux-gnu/ -optl-L/usr/lib/../lib/ -optl-L/opt/intel/composer_xe_2013.1.117/compiler/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/ipp/../compiler/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/ipp/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/mkl/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/tbb/lib/intel64/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../ -optl-L/lib64 -optl-L/lib/ -optl-L/usr/lib -optl-L/usr/lib/i386-linux-gnu -optl-lifport -optl-lifcore -optl-limf -optl-lsvml -optl-lm -optl-lipgo -optl-lirc -optl-lpthread -optl-lirc_s -optl-ldl
+
+  Extra-lib-dirs:  /home/ghorn/snopt7/lib
