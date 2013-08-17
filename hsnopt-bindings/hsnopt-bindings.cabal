@@ -1,0 +1,43 @@
+name:                hsnopt-bindings
+version:             0.1.0.0
+-- synopsis:            
+-- description:         
+license:             BSD3
+license-file:        LICENSE
+-- author:              
+-- maintainer:          
+-- copyright:           
+-- category:            
+build-type:          Simple
+cabal-version:       >=1.8
+
+--Extra-source-files: cbits
+
+--  -- exposed-modules:     
+--  -- other-modules:       
+--  build-depends:       base ==4.6.*
+--
+--  Extra-libraries: snopt_c
+--  Extra-lib-dirs:  /home/ghorn/snopt7/lib
+
+library
+  hs-source-dirs: src
+  exposed-modules:     Snopt.Bindings
+  -- other-modules:       
+  build-depends:       base ==4.6.*
+
+  Ghc-options: -O2 -fPIC
+--  Ghc-options: -fsimpl-tick-factor=500
+--  Extra-libraries: snopt_c snprint_c blas_c
+  Extra-libraries: snopt snprint blas
+--  Ghc-options: -pgml icpc
+--  Ghc-options: -optl-lsnopt -optl-lsnprint -optl-lblas
+--  Ghc-options: -optl-L/opt/intel/composer_xe_2013.1.117/compiler/lib/intel64
+--  Ghc-options: -optl-L/home/ghorn/snopt7/lib
+--  Ghc-options: -optl-L/opt/intel/composer_xe_2013.1.117/compiler/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/ipp/../compiler/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/ipp/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/mkl/lib/intel64 -optl-L/opt/intel/composer_xe_2013.1.117/tbb/lib/intel64 -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../x86_64-linux-gnu/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../../lib/ -optl-L/lib/x86_64-linux-gnu/ -optl-L/lib/../lib64 -optl-L/lib/../lib/ -optl-L/usr/lib/x86_64-linux-gnu/ -optl-L/usr/lib/../lib/ -optl-L/opt/intel/composer_xe_2013.1.117/compiler/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/ipp/../compiler/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/ipp/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/mkl/lib/intel64/ -optl-L/opt/intel/composer_xe_2013.1.117/tbb/lib/intel64/ -optl-L/usr/lib/gcc/x86_64-linux-gnu/4.8/../../../ -optl-L/lib64 -optl-L/lib/ -optl-L/usr/lib -optl-L/usr/lib/i386-linux-gnu -optl-lifport -optl-lifcore -optl-limf -optl-lsvml -optl-lm -optl-lipgo -optl-lirc -optl-lpthread -optl-lirc_s -optl-ldl
+
+--  Extra-libraries: ifport ifcore imf svml m ipgo irc pthread irc_s dl
+  Extra-libraries: ifport ifcore imf svml m irc pthread dl
+
+  Extra-lib-dirs:  /home/ghorn/snopt7/lib-static
+--  Extra-lib-dirs:  /home/ghorn/snopt7/lib-dynamic
