@@ -20,13 +20,15 @@ cabal-version:       >=1.8
 --  Extra-libraries: snopt_c
 --  Extra-lib-dirs:  /home/ghorn/snopt7/lib
 
+--executable testSnopt
+--  main-is: Snopt/Bindings.hs
 library
-  hs-source-dirs: src
   exposed-modules:     Snopt.Bindings
-  -- other-modules:       
+  hs-source-dirs: src
+
   build-depends:       base ==4.6.*
 
-  Ghc-options: -O2 -fPIC
+--  Ghc-options: -O2 -fPIC
 --  Ghc-options: -fsimpl-tick-factor=500
 --  Extra-libraries: snopt_c snprint_c blas_c
   Extra-libraries: snopt snprint blas
