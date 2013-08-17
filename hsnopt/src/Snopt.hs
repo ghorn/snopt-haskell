@@ -14,9 +14,11 @@ module Snopt ( Workspace(..)
              , snopta
              , mallocWorkspace
              , freeWorkspace
+             , toy0
+             , toy1
              ) where
 
-import Control.Monad ( when )
+import Control.Monad ( unless, when )
 import Foreign.C.String
 import Foreign.Ptr ( FunPtr, Ptr )
 import Foreign.Marshal
@@ -158,10 +160,10 @@ makeAG :: [(SnInteger, SnInteger, SnDoubleReal)] -> [(SnInteger, SnInteger)] -> 
 makeAG as gs = do
   -- even if neA,neG are zero, lenA,lenG must be > 0 so pad with 0s if neccesary
   let neA = fromIntegral $ length as
-      (iA,jA,a) = unzip3 $ case as of [] -> replicate 10 (0,0,0)
+      (iA,jA,a) = unzip3 $ case as of [] -> replicate 1 (0,0,0) -- check this
                                       _ -> as
       neG = fromIntegral $ length gs
-      (iG,jG) = unzip $ case gs of [] -> replicate 10 (0,0)
+      (iG,jG) = unzip $ case gs of [] -> replicate 10 (0,0) -- and this
                                    _ -> gs
 
       lenA = fromIntegral (length iA) -- should lenA be > 0?? see user guide
@@ -309,8 +311,8 @@ snopta workspace
 
     return info'
 
-main :: IO ()
-main = do
+toy0 :: IO ()
+toy0 = do
   workspace <- mallocWorkspace 500 10000 20000
   snInit workspace
 
@@ -341,5 +343,58 @@ main = do
   snJac workspace snX snF snA snG >>= (putStrLn . ("snJac: info: " ++) . show)
 
   setOptionI workspace "Derivative option" 0
+
+  snopta workspace snX snF snA snG >>= (putStrLn . ("snopta: ret: " ++) . show)
+
+
+toy1 :: IO ()
+toy1 = do
+  workspace <- mallocWorkspace 500 10000 20000
+  snInit workspace
+
+  let x = [ (1, (    0, 1e12))
+          , (1, (-1e12, 1e12))
+          ]
+      f = [ (-1e12, 1e12)
+          , (-1e12, 4)
+          , (-1e12, 5)
+          ]
+      objRow = 1
+      objAdd = 0
+
+      userfg _ _ x' needF _ f' needG _ g' _ _ _ _ _ _ = do
+        needF' <- peek needF
+        needG' <- peek needG
+        unless (needF' `elem` [0,1]) $ error "needF isn't 1 or 0"
+        unless (needG' `elem` [0,1]) $ error "needG isn't 1 or 0"
+        when (needF' == 1) $ do
+          x0 <- peekElemOff x' 0
+          x1 <- peekElemOff x' 1
+          pokeElemOff f' 0 (x1)
+          pokeElemOff f' 1 (x0*x0 + 4*x1*x1)
+          pokeElemOff f' 2 ((x0 - 2)*(x0 - 2) + x1*x1)
+
+        when (needG' == 1) $ do
+          x0 <- peekElemOff x' 0
+          x1 <- peekElemOff x' 1
+          pokeElemOff g' 0 0
+          pokeElemOff g' 1 1
+          pokeElemOff g' 2 (2*x0)
+          pokeElemOff g' 3 (8*x1)
+          pokeElemOff g' 4 (2*(x0-1))
+          pokeElemOff g' 5 (2*x1)
+
+  snX <- makeX x
+  snF <- makeF objRow objAdd f userfg
+
+  let a = []
+      g = [ (1,1)
+          , (1,2)
+          , (2,1)
+          , (2,2)
+          , (3,1)
+          , (3,2)
+          ]
+  (snA,snG) <- makeAG a g
 
   snopta workspace snX snF snA snG >>= (putStrLn . ("snopta: ret: " ++) . show)
