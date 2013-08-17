@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Snopt ( Workspace(..)
+module Snopt ( SnDoubleReal
+             , SnInteger
+             , Workspace(..)
              , SnX(..)
              , SnF(..)
              , SnA(..)
@@ -14,6 +16,7 @@ module Snopt ( Workspace(..)
              , snopta
              , mallocWorkspace
              , freeWorkspace
+             , wrap
              , toy0
              , toy1
              ) where
@@ -52,7 +55,6 @@ data SnF = SnF { sf_nF :: Ptr SnInteger
                , sf_fstate :: Ptr SnInteger
                , sf_fmul :: Ptr SnDoubleReal
                , sf_f :: Ptr SnDoubleReal
-               , sf_userf :: FunPtr U_fp
                , sf_objRow :: Ptr SnInteger
                , sf_objAdd :: Ptr SnDoubleReal
                }
@@ -128,8 +130,8 @@ makeX xWithBnds = do
                , sx_xmul = xmul
                }
 
-makeF :: SnInteger -> SnDoubleReal -> [(SnDoubleReal, SnDoubleReal)] -> U_fp -> IO SnF
-makeF objrow objadd fBnds userf = do
+makeF :: SnInteger -> SnDoubleReal -> [(SnDoubleReal, SnDoubleReal)] -> IO SnF
+makeF objrow objadd fBnds = do
   let nf = fromIntegral (length fBnds)
       (flb,fub) = unzip fBnds
   f' <- newArray (replicate nf 0) -- user should set this, in general
@@ -140,7 +142,6 @@ makeF objrow objadd fBnds userf = do
   fstate' <- newArray (replicate nf 0)
   fmul' <- newArray (replicate nf 0)
 
-  userf' <- wrap userf
   objrow' <- new objrow
   objadd' <- new objadd
 
@@ -150,23 +151,24 @@ makeF objrow objadd fBnds userf = do
                , sf_fstate = fstate'
                , sf_fmul = fmul'
                , sf_f = f'
-               , sf_userf = userf'
                , sf_objRow = objrow'
                , sf_objAdd = objadd'
                }
 
 
-makeAG :: [(SnInteger, SnInteger, SnDoubleReal)] -> [(SnInteger, SnInteger)] -> IO (SnA, SnG)
+makeAG :: [((SnInteger, SnInteger), SnDoubleReal)] -> [(SnInteger, SnInteger)] -> IO (SnA, SnG)
 makeAG as gs = do
   -- even if neA,neG are zero, lenA,lenG must be > 0 so pad with 0s if neccesary
   let neA = fromIntegral $ length as
-      (iA,jA,a) = unzip3 $ case as of [] -> replicate 1 (0,0,0) -- check this
-                                      _ -> as
+      (ijA,a) = unzip $ case as of [] -> replicate 1 ((0,0),0) -- check this
+                                   _ -> as
+      (iA,jA) = unzip ijA
+
       neG = fromIntegral $ length gs
-      (iG,jG) = unzip $ case gs of [] -> replicate 10 (0,0) -- and this
+      (iG,jG) = unzip $ case gs of [] -> replicate 1 (0,0) -- and this
                                    _ -> gs
 
-      lenA = fromIntegral (length iA) -- should lenA be > 0?? see user guide
+      lenA = fromIntegral (length ijA) -- should lenA be > 0?? see user guide
       lenG = fromIntegral (length iG) -- should lenG be > 0?? see user guide
 
   putStrLn $ "neA: " ++ show neA
@@ -200,12 +202,14 @@ snInit (Workspace cw iw rw lencw leniw lenrw) = do
   free iPrt'
   free iSum'
 
-snJac :: Workspace -> SnX -> SnF -> SnA -> SnG -> IO (SnInteger,SnInteger,SnInteger,SnInteger)
+snJac :: Workspace -> SnX -> SnF -> SnA -> SnG -> FunPtr U_fp
+         -> IO (SnInteger,SnInteger,SnInteger,SnInteger)
 snJac workspace
   (SnX {sx_x = x, sx_xlow = xlow, sx_xupp = xupp, sx_nx = nx})
-  (SnF {sf_userf = userf, sf_nF = nF})
+  (SnF {sf_nF = nF})
   (SnA {sa_iAfun = iAfun, sa_jAvar = jAvar, sa_lenA = lenA, sa_neA = neA, sa_a = a})
   (SnG {sg_iGfun = iGfun, sg_jGvar = jGvar, sg_lenG = lenG, sg_neG = neG})
+  userf
   = do
   let Workspace cu iu ru lencu leniu lenru = workspace
       Workspace cw iw rw lencw leniw lenrw = workspace
@@ -240,13 +244,14 @@ snJac workspace
   when (info' /= 102) $ error $ "snJac: failure"
   return (info', mincw', miniw', minrw')
 
-snopta :: Workspace -> SnX -> SnF -> SnA -> SnG -> IO SnInteger
+snopta :: Workspace -> SnX -> SnF -> SnA -> SnG -> FunPtr U_fp -> IO SnInteger
 snopta workspace
   (SnX {sx_x = x, sx_xlow = xlow, sx_xupp = xupp, sx_nx = nx, sx_xstate = xstate, sx_xmul = xmul})
-  (SnF { sf_nF = nF, sf_fstate = fstate, sf_objAdd = objAdd, sf_objRow = objRow, sf_userf = userf
+  (SnF { sf_nF = nF, sf_fstate = fstate, sf_objAdd = objAdd, sf_objRow = objRow
        , sf_flow = flow, sf_fupp = fupp, sf_f = f, sf_fmul = fmul })
   (SnA {sa_iAfun = iAfun, sa_jAvar = jAvar, sa_lenA = lenA, sa_neA = neA, sa_a = a})
   (SnG {sg_iGfun = iGfun, sg_jGvar = jGvar, sg_lenG = lenG, sg_neG = neG})
+  userf
   = do
     let Workspace cu iu ru lencu leniu lenru = workspace
         Workspace cw iw rw lencw leniw lenrw = workspace
@@ -333,18 +338,19 @@ toy0 = do
         pokeElemOff f' 1 (x0*x0 + 4*x1*x1)
         pokeElemOff f' 2 ((x0 - 2)*(x0 - 2) + x1*x1)
 
+  userf' <- wrap userf
   snX <- makeX x
-  snF <- makeF objRow objAdd f userf
+  snF <- makeF objRow objAdd f
 
   let a = []
       g = []
   (snA,snG) <- makeAG a g
 
-  snJac workspace snX snF snA snG >>= (putStrLn . ("snJac: info: " ++) . show)
+  snJac workspace snX snF snA snG userf' >>= (putStrLn . ("snJac: info: " ++) . show)
 
   setOptionI workspace "Derivative option" 0
 
-  snopta workspace snX snF snA snG >>= (putStrLn . ("snopta: ret: " ++) . show)
+  snopta workspace snX snF snA snG userf' >>= (putStrLn . ("snopta: ret: " ++) . show)
 
 
 toy1 :: IO ()
@@ -383,9 +389,9 @@ toy1 = do
           pokeElemOff g' 3 (8*x1)
           pokeElemOff g' 4 (2*(x0-1))
           pokeElemOff g' 5 (2*x1)
-
+  userf' <- wrap userfg
   snX <- makeX x
-  snF <- makeF objRow objAdd f userfg
+  snF <- makeF objRow objAdd f
 
   let a = []
       g = [ (1,1)
@@ -397,4 +403,4 @@ toy1 = do
           ]
   (snA,snG) <- makeAG a g
 
-  snopta workspace snX snF snA snG >>= (putStrLn . ("snopta: ret: " ++) . show)
+  snopta workspace snX snF snA snG userf' >>= (putStrLn . ("snopta: ret: " ++) . show)
