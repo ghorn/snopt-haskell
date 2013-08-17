@@ -1,9 +1,20 @@
 {-# OPTIONS_GHC -Wall #-}
 
---module Snopt ( Workspace(..)
---             , mallocWorkspace
---             , freeWorkspace
---             ) where
+module Snopt ( Workspace(..)
+             , SnX(..)
+             , SnF(..)
+             , SnA(..)
+             , SnG(..)
+             , makeX
+             , makeF
+             , makeAG
+             , snInit
+             , setOptionI
+             , snJac
+             , snopta
+             , mallocWorkspace
+             , freeWorkspace
+             ) where
 
 import Control.Monad ( when )
 import Foreign.C.String
@@ -96,8 +107,8 @@ freeWorkspace (Workspace cw iw rw ncw niw nrw) = do
   free rw
 
 
-makeSnX :: [(SnDoubleReal, (SnDoubleReal, SnDoubleReal))] -> IO SnX
-makeSnX xWithBnds = do
+makeX :: [(SnDoubleReal, (SnDoubleReal, SnDoubleReal))] -> IO SnX
+makeX xWithBnds = do
   let nx = fromIntegral (length xWithBnds)
       (x0',xlow',xupp') = unzip3 $ map (\(x0,(xlb,xub)) -> (x0,xlb,xub)) xWithBnds
   x0'' <- newArray x0'
@@ -115,8 +126,8 @@ makeSnX xWithBnds = do
                , sx_xmul = xmul
                }
 
-makeSnF :: SnInteger -> SnDoubleReal -> [(SnDoubleReal, SnDoubleReal)] -> U_fp -> IO SnF
-makeSnF objrow objadd fBnds userf = do
+makeF :: SnInteger -> SnDoubleReal -> [(SnDoubleReal, SnDoubleReal)] -> U_fp -> IO SnF
+makeF objrow objadd fBnds userf = do
   let nf = fromIntegral (length fBnds)
       (flb,fub) = unzip fBnds
   f' <- newArray (replicate nf 0) -- user should set this, in general
@@ -143,8 +154,8 @@ makeSnF objrow objadd fBnds userf = do
                }
 
 
-snAG :: [(SnInteger, SnInteger, SnDoubleReal)] -> [(SnInteger, SnInteger)] -> IO (SnA, SnG)
-snAG as gs = do
+makeAG :: [(SnInteger, SnInteger, SnDoubleReal)] -> [(SnInteger, SnInteger)] -> IO (SnA, SnG)
+makeAG as gs = do
   -- even if neA,neG are zero, lenA,lenG must be > 0 so pad with 0s if neccesary
   let neA = fromIntegral $ length as
       (iA,jA,a) = unzip3 $ case as of [] -> replicate 10 (0,0,0)
@@ -235,8 +246,6 @@ snopta workspace
   (SnA {sa_iAfun = iAfun, sa_jAvar = jAvar, sa_lenA = lenA, sa_neA = neA, sa_a = a})
   (SnG {sg_iGfun = iGfun, sg_jGvar = jGvar, sg_lenG = lenG, sg_neG = neG})
   = do
-    putStrLn "running snopt a, woo"
-
     let Workspace cu iu ru lencu leniu lenru = workspace
         Workspace cw iw rw lencw leniw lenrw = workspace
     let nxname' = 1
@@ -300,13 +309,11 @@ snopta workspace
 
     return info'
 
-
 main :: IO ()
 main = do
   workspace <- mallocWorkspace 500 10000 20000
   snInit workspace
 
-  ----------- toy0 --------
   let x = [ (1, (    0, 1e12))
           , (1, (-1e12, 1e12))
           ]
@@ -324,12 +331,12 @@ main = do
         pokeElemOff f' 1 (x0*x0 + 4*x1*x1)
         pokeElemOff f' 2 ((x0 - 2)*(x0 - 2) + x1*x1)
 
-  snX <- makeSnX x
-  snF <- makeSnF objRow objAdd f userf
+  snX <- makeX x
+  snF <- makeF objRow objAdd f userf
 
   let a = []
       g = []
-  (snA,snG) <- snAG a g
+  (snA,snG) <- makeAG a g
 
   snJac workspace snX snF snA snG >>= (putStrLn . ("snJac: info: " ++) . show)
 

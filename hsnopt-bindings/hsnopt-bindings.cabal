@@ -41,5 +41,5 @@ library
 --  Extra-libraries: ifport ifcore imf svml m ipgo irc pthread irc_s dl
   Extra-libraries: ifport ifcore imf svml m irc pthread dl
 
-  Extra-lib-dirs:  /home/ghorn/snopt7/lib-static
+  Extra-lib-dirs:  /home/ghorn/snopt7/lib
 --  Extra-lib-dirs:  /home/ghorn/snopt7/lib-dynamic
