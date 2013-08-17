@@ -17,7 +17,7 @@ type SnInteger = CInt
 type SnDoubleReal = CDouble
 type SnChar = CChar
 type SnFtnLen = CInt
---type SnInt = CInt
+type SnRet = ()
 
 type Snopta_ = Ptr SnInteger -- ( integer *start
                -> Ptr SnInteger    -- , integer *nef
@@ -73,7 +73,7 @@ type Snopta_ = Ptr SnInteger -- ( integer *start
                -> SnFtnLen    -- , ftnlen fnames_le
                -> SnFtnLen    -- , ftnlen cu_len
                -> SnFtnLen    -- , ftnlen cw_len );
-               -> IO () -- extern int snopta_
+               -> IO SnRet -- extern int snopta_
 foreign import ccall safe "snopta_" c_snopta_ :: Snopta_
 
 type SnInit_ = Ptr SnInteger -- ( integer *iPrint
@@ -85,7 +85,7 @@ type SnInit_ = Ptr SnInteger -- ( integer *iPrint
                -> Ptr SnDoubleReal -- , doublereal *rw
                -> Ptr SnInteger -- , integer *lenrw
                -> SnFtnLen -- , ftnlen cw_len)
-               -> IO () -- SnInt -- extern int sninit_
+               -> IO SnRet -- SnInt -- extern int sninit_
 foreign import ccall unsafe "sninit_" c_sninit_ :: SnInit_
 
 type SnSet_ a = Ptr SnChar -- ( char *buffer
@@ -101,7 +101,7 @@ type SnSet_ a = Ptr SnChar -- ( char *buffer
                 -> Ptr SnInteger -- , integer *lenrw
                 -> SnFtnLen -- , ftnlen buffer_len
                 -> SnFtnLen -- , ftnlen cw_len );
-                -> IO () -- extern int snseti_
+                -> IO SnRet -- extern int snseti_
 
 --type SnSeti_ = SnSet_ SnInteger
 --type SnSetr_ = SnSet_ SnDoubleReal
@@ -141,7 +141,7 @@ type SnJac_ = Ptr SnInteger -- ( integer *iExit
               -> Ptr SnInteger -- , integer *lenrw
               -> SnFtnLen -- , ftnlen cu_len
               -> SnFtnLen -- , ftnlen cw_len);
-              -> IO () -- extern int snjac_
+              -> IO SnRet -- extern int snjac_
 foreign import ccall safe "snjac_" c_snjac_ :: SnJac_
 
 type U_fp = Ptr SnInteger       --  ( integer    *Status
@@ -159,7 +159,7 @@ type U_fp = Ptr SnInteger       --  ( integer    *Status
             -> Ptr SnInteger    --  , integer *leniu
             -> SnDoubleReal     --  , doublereal ru[]
             -> SnInteger        --  , integer *lenru )
-            -> IO () -- int toyusrf_
+            -> IO SnRet -- int toyusrf_
 
 foreign import ccall "wrapper"
   wrap :: U_fp -> IO (FunPtr U_fp)

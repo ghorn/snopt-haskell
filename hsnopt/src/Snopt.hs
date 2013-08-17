@@ -10,7 +10,6 @@ import Foreign.C.String
 import Foreign.Ptr ( FunPtr, Ptr )
 import Foreign.Marshal
 import Foreign.Storable
---import Foreign.C.Types ( CDouble(..), CInt(..) )
 
 import Snopt.Bindings
 
