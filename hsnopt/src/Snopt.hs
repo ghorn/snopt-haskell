@@ -1,26 +1,26 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# Language TemplateHaskell #-}
 
-module Snopt ( SnDoubleReal
+module Snopt ( -- * types
+               SnoptA
+             , SnDoubleReal
              , SnInteger
-             , Workspace(..)
-             , SnX(..)
-             , SnF(..)
-             , SnA(..)
-             , SnG(..)
-             , makeX
-             , makeF
-             , makeAG
+               -- * memory
+             , mallocSnoptA
+             , freeSnoptA
+               -- * the functions
              , snInit
              , setOptionI
              , snJac
              , snopta
-             , mallocWorkspace
-             , freeWorkspace
+               -- * extra
              , wrap
-             , toy0
+--             , toy0
              , toy1
              ) where
 
+import Control.Lens ( makeLenses, (^.), over, set )
+import Control.Lens.Getter
 import Control.Monad ( unless, when )
 import Foreign.C.String
 import Foreign.Ptr ( FunPtr, Ptr )
@@ -35,43 +35,294 @@ global_printval = 0
 global_summaryval :: SnInteger
 global_summaryval = 6
 
-data Workspace = Workspace { wsCw :: Ptr SnChar
-                           , wsIw :: Ptr SnInteger
-                           , wsRw :: Ptr SnDoubleReal
-                           , wsNcw :: Ptr SnInteger
-                           , wsNiw :: Ptr SnInteger
-                           , wsNrw :: Ptr SnInteger
-                           }
-data SnX = SnX { sx_nx :: Ptr SnInteger
-               , sx_xlow :: Ptr SnDoubleReal
-               , sx_xupp :: Ptr SnDoubleReal
-               , sx_x :: Ptr SnDoubleReal
-               , sx_xstate :: Ptr SnInteger
-               , sx_xmul :: Ptr SnDoubleReal
+data Workspace = Workspace
+                 (Ptr SnChar) (Ptr SnInteger) (Ptr SnDoubleReal)
+                 (Ptr SnInteger) (Ptr SnInteger) (Ptr SnInteger)
+
+
+data SnX = SnX { _sx_nx :: Ptr SnInteger
+               , _sx_xlow :: Ptr SnDoubleReal
+               , _sx_xupp :: Ptr SnDoubleReal
+               , _sx_x :: Ptr SnDoubleReal
+               , _sx_xstate :: Ptr SnInteger
+               , _sx_xmul :: Ptr SnDoubleReal
                }
-data SnF = SnF { sf_nF :: Ptr SnInteger
-               , sf_flow :: Ptr SnDoubleReal
-               , sf_fupp :: Ptr SnDoubleReal
-               , sf_fstate :: Ptr SnInteger
-               , sf_fmul :: Ptr SnDoubleReal
-               , sf_f :: Ptr SnDoubleReal
-               , sf_objRow :: Ptr SnInteger
-               , sf_objAdd :: Ptr SnDoubleReal
+data SnF = SnF { _sf_nF :: Ptr SnInteger
+               , _sf_flow :: Ptr SnDoubleReal
+               , _sf_fupp :: Ptr SnDoubleReal
+               , _sf_fstate :: Ptr SnInteger
+               , _sf_fmul :: Ptr SnDoubleReal
+               , _sf_f :: Ptr SnDoubleReal
+               , _sf_objRow :: Ptr SnInteger
+               , _sf_objAdd :: Ptr SnDoubleReal
                }
-data SnA = SnA { sa_iAfun :: Ptr SnInteger
-               , sa_jAvar :: Ptr SnInteger
-               , sa_a :: Ptr SnDoubleReal
-               , sa_lenA :: Ptr SnInteger -- size of vector
-               , sa_neA :: Ptr SnInteger -- number of elements in vector
+data SnA = SnA { _sa_iAfun :: Ptr SnInteger
+               , _sa_jAvar :: Ptr SnInteger
+               , _sa_a :: Ptr SnDoubleReal
+               , _sa_lenA :: Ptr SnInteger -- size of vector
+               , _sa_neA :: Ptr SnInteger -- number of elements in vector
                }
-data SnG = SnG { sg_iGfun :: Ptr SnInteger
-               , sg_jGvar :: Ptr SnInteger
-               , sg_lenG :: Ptr SnInteger -- size of vector
-               , sg_neG :: Ptr SnInteger -- number of elements in vector
+data SnG = SnG { _sg_iGfun :: Ptr SnInteger
+               , _sg_jGvar :: Ptr SnInteger
+               , _sg_lenG :: Ptr SnInteger -- size of vector
+               , _sg_neG :: Ptr SnInteger -- number of elements in vector
+               }
+data SnoptA = SnoptA { _sna_ws :: Workspace
+                     , _sna_x :: SnX
+                     , _sna_f :: SnF
+                     , _sna_a :: SnA
+                     , _sna_g :: SnG
+                     , _sna_ufp :: FunPtr U_fp
+                     }
+makeLenses ''SnX
+makeLenses ''SnF
+makeLenses ''SnA
+makeLenses ''SnG
+makeLenses ''SnoptA
+
+---------------------------------- malloc/free ------------------------------
+mallocSnoptA :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> FunPtr U_fp -> IO SnoptA
+mallocSnoptA nc ni nr nx nf na ng ufp = do
+  workspace <- mallocWorkspace nc ni nr
+  sx <- mallocX nx
+  sf <- mallocF nf
+  (sa,sg) <- mallocAG na ng
+  return $ SnoptA workspace sx sf sa sg ufp
+  
+freeSnoptA :: SnoptA -> IO ()
+freeSnoptA (SnoptA ws x f a g _) = do
+  freeWorkspace ws
+  freeF f
+  freeAG a g
+  
+mallocWorkspace :: Int -> Int -> Int -> IO Workspace
+mallocWorkspace lencw leniw lenrw = do
+  ncw <- new (fromIntegral lencw)
+  niw <- new (fromIntegral leniw)
+  nrw <- new (fromIntegral lenrw)
+  cw <- mallocArray (8*lencw)
+  iw <- mallocArray leniw
+  rw <- mallocArray lenrw
+  return $ Workspace cw iw rw ncw niw nrw
+
+freeWorkspace :: Workspace -> IO ()
+freeWorkspace (Workspace cw iw rw ncw niw nrw) = do
+  mapM_ free [ncw,niw,nrw]
+  free cw
+  free iw
+  free rw
+
+mallocX :: Int -> IO SnX
+mallocX n = do
+  nx     <- new (fromIntegral n)
+  x      <- newArray (replicate n 0)
+  xlow   <- newArray (replicate n 0)
+  xupp   <- newArray (replicate n 0)
+  xstate <- newArray (replicate n 0)
+  xmul   <- newArray (replicate n 0)
+  return $ SnX { _sx_nx = nx
+               , _sx_xlow = xlow
+               , _sx_xupp = xupp
+               , _sx_x = x
+               , _sx_xstate = xstate
+               , _sx_xmul = xmul
                }
 
-setOptionI :: Workspace -> String -> SnInteger -> IO ()
-setOptionI (Workspace cw iw rw lencw leniw lenrw) name value = do
+freeX :: SnX -> IO ()
+freeX (SnX x0 x1 x2 x3 x4 x5) = do
+  free x0
+  free x1
+  free x2
+  free x3
+  free x4
+  free x5
+
+mallocF :: Int -> IO SnF
+mallocF n = do
+  nf  <- new (fromIntegral n)
+  f      <- newArray (replicate n 0)
+  flow   <- newArray (replicate n 0)
+  fupp   <- newArray (replicate n 0)
+  fstate <- newArray (replicate n 0)
+  fmul   <- newArray (replicate n 0)
+  objrow <- new 1
+  objadd <- new 0
+
+  return $ SnF { _sf_nF = nf
+               , _sf_flow = flow
+               , _sf_fupp = fupp
+               , _sf_fstate = fstate
+               , _sf_fmul = fmul
+               , _sf_f = f
+               , _sf_objRow = objrow
+               , _sf_objAdd = objadd
+               }
+
+freeF :: SnF -> IO ()
+freeF (SnF f0 f1 f2 f3 f4 f5 f6 f7) = do
+  free f0
+  free f1
+  free f2
+  free f3
+  free f4
+  free f5
+  free f6
+  free f7
+
+mallocAG :: Int -> Int -> IO (SnA, SnG)
+mallocAG neA neG
+  | neA < 0 = error "mallocAG: neA < 0"
+  | neG < 0 = error "mallocAG: neG < 0"
+mallocAG neA neG = do
+  let lenA | neA < 1 = 1
+           | otherwise = neA
+      lenG | neG < 1 = 1
+           | otherwise = neG
+
+  neA'  <- new (fromIntegral neA)
+  lenA' <- new (fromIntegral lenA)
+  iA'   <- newArray (replicate lenA 0)
+  jA'   <- newArray (replicate lenA 0)
+  a'    <- newArray (replicate lenA 0)
+
+  neG'  <- new (fromIntegral neG)
+  lenG' <- new (fromIntegral lenG)
+  iG' <- newArray (replicate lenA 0)
+  jG' <- newArray (replicate lenA 0)
+
+  let sna = SnA { _sa_iAfun = iA'
+                , _sa_jAvar = jA'
+                , _sa_neA = neA'
+                , _sa_lenA = lenA'
+                , _sa_a = a'
+                }
+      sng = SnG { _sg_iGfun = iG'
+                , _sg_jGvar = jG'
+                , _sg_neG = neG'
+                , _sg_lenG = lenG'
+                }
+  return (sna, sng)
+
+freeAG :: SnA -> SnG -> IO ()
+freeAG (SnA a0 a1 a2 a3 a4) (SnG g0 g1 g2 g3) = do
+  free a0
+  free a1
+  free a2
+  free a3
+  free a4
+
+  free g0
+  free g1
+  free g2
+  free g3
+
+--------------------------- setters/getters ----------------------------
+getArray :: Storable a =>
+            Getting (Ptr SnInteger) xfag (Ptr SnInteger)
+         -> ((xfag -> Accessor xfag xfag) -> SnoptA -> Accessor xfag SnoptA)
+         -> Getting (Ptr a) xfag (Ptr a)
+         -> SnoptA
+         -> IO [a]
+getArray getNum getXFAG getField snoptA = do
+  let snx  = snoptA ^. getXFAG
+  n <- peek (snx ^. getNum)
+  peekArray (fromIntegral n) (snx ^. getField)
+
+setArray :: Storable a =>
+            String
+         -> Getting (Ptr SnInteger) xfag (Ptr SnInteger)
+         -> ((xfag -> Accessor xfag xfag) -> SnoptA -> Accessor xfag SnoptA)
+         -> Getting (Ptr a) xfag (Ptr a)
+         -> SnoptA
+         -> [a]
+         -> IO ()
+setArray name getNum getXFAG getField snoptA val = do
+  let snx  = snoptA ^. getXFAG
+  n <- peek (snx ^. getNum)
+  let lval = length val
+      trueval = fromIntegral n
+  when (lval /= trueval) $
+    error $ "setArray dimension mismatch: " ++ name ++ ": " ++ show lval ++ " /= " ++ show trueval
+  pokeArray (snx ^. getField) val
+
+getScalar :: Storable a =>
+             ((xfag -> Accessor xfag xfag) -> SnoptA -> Accessor xfag SnoptA)
+          -> Getting (Ptr a) xfag (Ptr a)
+          -> SnoptA
+          -> IO a
+getScalar getXFAG getField snoptA = do
+  let snx  = snoptA ^. getXFAG
+  peek (snx ^. getField)
+
+setScalar :: Storable a =>
+             ((xfag -> Accessor xfag xfag) -> SnoptA -> Accessor xfag SnoptA)
+          -> Getting (Ptr a) xfag (Ptr a)
+          -> SnoptA
+          -> a
+          -> IO ()
+setScalar getXFAG getField snoptA val = do
+  let snx  = snoptA ^. getXFAG
+  poke (snx ^. getField) val
+
+getXlow   = getArray sx_nx sna_x sx_xlow
+getXupp   = getArray sx_nx sna_x sx_xupp
+getX      = getArray sx_nx sna_x sx_x
+getXstate = getArray sx_nx sna_x sx_xstate
+getXmul   = getArray sx_nx sna_x sx_xmul
+
+setXlow   = setArray "xlow"   sx_nx sna_x sx_xlow
+setXupp   = setArray "xupp"   sx_nx sna_x sx_xupp
+setX      = setArray "x"      sx_nx sna_x sx_x
+setXstate = setArray "xstate" sx_nx sna_x sx_xstate
+setXmul   = setArray "xmul  " sx_nx sna_x sx_xmul
+
+getFlow   = getArray sf_nF sna_f sf_flow
+getFupp   = getArray sf_nF sna_f sf_fupp
+getFstate = getArray sf_nF sna_f sf_fstate
+getFmul   = getArray sf_nF sna_f sf_fmul
+getF      = getArray sf_nF sna_f sf_f
+getObjRow = getScalar sna_f sf_objRow
+getObjAdd = getScalar sna_f sf_objAdd
+
+setFlow   = setArray "flow"   sf_nF sna_f sf_flow
+setFupp   = setArray "fupp"   sf_nF sna_f sf_fupp
+setFstate = setArray "fstate" sf_nF sna_f sf_fstate
+setFmul   = setArray "fmul"   sf_nF sna_f sf_fmul
+setF      = setArray "f"      sf_nF sna_f sf_f
+setObjRow = setScalar sna_f sf_objRow
+setObjAdd = setScalar sna_f sf_objAdd
+
+getIAfun = getArray sa_neA sna_a sa_iAfun
+getJAvar = getArray sa_neA sna_a sa_jAvar
+getA     = getArray sa_neA sna_a sa_a
+
+setIAfun = setArray "iAfun" sa_neA sna_a sa_iAfun
+setJAvar = setArray "jAvar" sa_neA sna_a sa_jAvar
+setA     = setArray "A"     sa_neA sna_a sa_a
+
+getIGfun = getArray sg_neG sna_g sg_iGfun
+getJGvar = getArray sg_neG sna_g sg_jGvar
+
+setIGfun = setArray "iGfun" sg_neG sna_g sg_iGfun
+setJGvar = setArray "jGvar" sg_neG sna_g sg_jGvar
+
+--------------------------------------------------------------------------------------
+
+
+snInit' :: Workspace -> IO ()
+snInit' (Workspace cw iw rw lencw leniw lenrw) = do
+  iPrt' <- new global_printval
+  iSum' <- new global_summaryval
+  cw_len <- peek lencw
+  c_sninit_ iPrt' iSum' cw lencw iw leniw rw lenrw (cw_len*8)
+  free iPrt'
+  free iSum'
+
+snInit :: SnoptA -> IO ()
+snInit sna = snInit' (sna ^. sna_ws)
+
+setOptionI' :: Workspace -> String -> SnInteger -> IO ()
+setOptionI' (Workspace cw iw rw lencw leniw lenrw) name value = do
   iPrt' <- new global_printval
   iSum' <- new global_summaryval
   errors' <- new 0
@@ -93,124 +344,17 @@ setOptionI (Workspace cw iw rw lencw leniw lenrw) name value = do
 
   when (errors /= 0) $ error $ "setOption: " ++ show name ++ " = " ++ show value
 
-mallocWorkspace :: SnInteger -> SnInteger -> SnInteger -> IO Workspace
-mallocWorkspace lencw leniw lenrw = do
-  ncw <- new lencw
-  niw <- new leniw
-  nrw <- new lenrw
-  cw <- mallocArray (8*(fromIntegral lencw))
-  iw <- mallocArray (fromIntegral leniw)
-  rw <- mallocArray (fromIntegral lenrw)
-  return $ Workspace cw iw rw ncw niw nrw
+setOptionI :: SnoptA -> String -> SnInteger -> IO ()
+setOptionI sna = setOptionI' (sna ^. sna_ws)
 
-freeWorkspace :: Workspace -> IO ()
-freeWorkspace (Workspace cw iw rw ncw niw nrw) = do
-  mapM_ free [ncw,niw,nrw]
-  free cw
-  free iw
-  free rw
-
-
-makeX :: [(SnDoubleReal, (SnDoubleReal, SnDoubleReal))] -> IO SnX
-makeX xWithBnds = do
-  let nx = fromIntegral (length xWithBnds)
-      (x0',xlow',xupp') = unzip3 $ map (\(x0,(xlb,xub)) -> (x0,xlb,xub)) xWithBnds
-  x0'' <- newArray x0'
-  xlow'' <- newArray xlow'
-  xupp'' <- newArray xupp'
-  nx' <- new nx
-  xstate <- newArray (replicate (length xWithBnds) 0)
-  xmul <- newArray (replicate (length xWithBnds) 0)
-
-  return $ SnX { sx_nx = nx'
-               , sx_xlow = xlow''
-               , sx_xupp = xupp''
-               , sx_x = x0''
-               , sx_xstate = xstate
-               , sx_xmul = xmul
-               }
-
-makeF :: SnInteger -> SnDoubleReal -> [(SnDoubleReal, SnDoubleReal)] -> IO SnF
-makeF objrow objadd fBnds = do
-  let nf = fromIntegral (length fBnds)
-      (flb,fub) = unzip fBnds
-  f' <- newArray (replicate nf 0) -- user should set this, in general
-  flb' <- newArray flb
-  fub' <- newArray fub
-  nf' <- new (fromIntegral nf)
-
-  fstate' <- newArray (replicate nf 0)
-  fmul' <- newArray (replicate nf 0)
-
-  objrow' <- new objrow
-  objadd' <- new objadd
-
-  return $ SnF { sf_nF = nf'
-               , sf_flow = flb'
-               , sf_fupp = fub'
-               , sf_fstate = fstate'
-               , sf_fmul = fmul'
-               , sf_f = f'
-               , sf_objRow = objrow'
-               , sf_objAdd = objadd'
-               }
-
-
-makeAG :: [((SnInteger, SnInteger), SnDoubleReal)] -> [(SnInteger, SnInteger)] -> IO (SnA, SnG)
-makeAG as gs = do
-  -- even if neA,neG are zero, lenA,lenG must be > 0 so pad with 0s if neccesary
-  let neA = fromIntegral $ length as
-      (ijA,a) = unzip $ case as of [] -> replicate 1 ((0,0),0) -- check this
-                                   _ -> as
-      (iA,jA) = unzip ijA
-
-      neG = fromIntegral $ length gs
-      (iG,jG) = unzip $ case gs of [] -> replicate 1 (0,0) -- and this
-                                   _ -> gs
-
-      lenA = fromIntegral (length ijA) -- should lenA be > 0?? see user guide
-      lenG = fromIntegral (length iG) -- should lenG be > 0?? see user guide
-
-  putStrLn $ "neA: " ++ show neA
-  putStrLn $ "neG: " ++ show neG
-
-  putStrLn $ "lenA: " ++ show lenA
-  putStrLn $ "lenG: " ++ show lenG
-
-  neA' <- new neA
-  lenA' <- new lenA
-  iA' <- newArray iA
-  jA' <- newArray jA
-  a' <- newArray a
-
-  lenG' <- new lenG
-  neG' <- new neG
-  iG' <- newArray iG
-  jG' <- newArray jG
-
-  let sna = SnA { sa_iAfun = iA', sa_jAvar = jA', sa_neA = neA', sa_lenA = lenA', sa_a = a' }
-      sng = SnG { sg_iGfun = iG', sg_jGvar = jG', sg_neG = neG', sg_lenG = lenG' }
-  return (sna, sng)
-
-
-snInit :: Workspace -> IO ()
-snInit (Workspace cw iw rw lencw leniw lenrw) = do
-  iPrt' <- new global_printval
-  iSum' <- new global_summaryval
-  cw_len <- peek lencw
-  c_sninit_ iPrt' iSum' cw lencw iw leniw rw lenrw (cw_len*8)
-  free iPrt'
-  free iSum'
-
-snJac :: Workspace -> SnX -> SnF -> SnA -> SnG -> FunPtr U_fp
-         -> IO (SnInteger,SnInteger,SnInteger,SnInteger)
-snJac workspace
-  (SnX {sx_x = x, sx_xlow = xlow, sx_xupp = xupp, sx_nx = nx})
-  (SnF {sf_nF = nF})
-  (SnA {sa_iAfun = iAfun, sa_jAvar = jAvar, sa_lenA = lenA, sa_neA = neA, sa_a = a})
-  (SnG {sg_iGfun = iGfun, sg_jGvar = jGvar, sg_lenG = lenG, sg_neG = neG})
-  userf
-  = do
+snJac :: SnoptA -> IO (SnInteger,SnInteger,SnInteger,SnInteger)
+snJac (SnoptA workspace
+  (SnX { _sx_x = x, _sx_xlow = xlow, _sx_xupp = xupp, _sx_nx = nx, _sx_xstate = xstate, _sx_xmul = xmul})
+  (SnF { _sf_nF = nF, _sf_fstate = fstate, _sf_objAdd = objAdd, _sf_objRow = objRow
+       , _sf_flow = flow, _sf_fupp = fupp, _sf_f = f, _sf_fmul = fmul })
+  (SnA {_sa_iAfun = iAfun, _sa_jAvar = jAvar, _sa_lenA = lenA, _sa_neA = neA, _sa_a = a})
+  (SnG {_sg_iGfun = iGfun, _sg_jGvar = jGvar, _sg_lenG = lenG, _sg_neG = neG})
+  userf ) = do
   let Workspace cu iu ru lencu leniu lenru = workspace
       Workspace cw iw rw lencw leniw lenrw = workspace
 
@@ -244,14 +388,14 @@ snJac workspace
   when (info' /= 102) $ error $ "snJac: failure"
   return (info', mincw', miniw', minrw')
 
-snopta :: Workspace -> SnX -> SnF -> SnA -> SnG -> FunPtr U_fp -> IO SnInteger
-snopta workspace
-  (SnX {sx_x = x, sx_xlow = xlow, sx_xupp = xupp, sx_nx = nx, sx_xstate = xstate, sx_xmul = xmul})
-  (SnF { sf_nF = nF, sf_fstate = fstate, sf_objAdd = objAdd, sf_objRow = objRow
-       , sf_flow = flow, sf_fupp = fupp, sf_f = f, sf_fmul = fmul })
-  (SnA {sa_iAfun = iAfun, sa_jAvar = jAvar, sa_lenA = lenA, sa_neA = neA, sa_a = a})
-  (SnG {sg_iGfun = iGfun, sg_jGvar = jGvar, sg_lenG = lenG, sg_neG = neG})
-  userf
+snopta :: SnoptA -> IO SnInteger
+snopta (SnoptA workspace
+  (SnX { _sx_x = x, _sx_xlow = xlow, _sx_xupp = xupp, _sx_nx = nx, _sx_xstate = xstate, _sx_xmul = xmul})
+  (SnF { _sf_nF = nF, _sf_fstate = fstate, _sf_objAdd = objAdd, _sf_objRow = objRow
+       , _sf_flow = flow, _sf_fupp = fupp, _sf_f = f, _sf_fmul = fmul })
+  (SnA {_sa_iAfun = iAfun, _sa_jAvar = jAvar, _sa_lenA = lenA, _sa_neA = neA, _sa_a = a})
+  (SnG {_sg_iGfun = iGfun, _sg_jGvar = jGvar, _sg_lenG = lenG, _sg_neG = neG})
+  userf )
   = do
     let Workspace cu iu ru lencu leniu lenru = workspace
         Workspace cw iw rw lencw leniw lenrw = workspace
@@ -316,48 +460,9 @@ snopta workspace
 
     return info'
 
-toy0 :: IO ()
-toy0 = do
-  workspace <- mallocWorkspace 500 10000 20000
-  snInit workspace
-
-  let x = [ (1, (    0, 1e12))
-          , (1, (-1e12, 1e12))
-          ]
-      f = [ (-1e12, 1e12)
-          , (-1e12, 4)
-          , (-1e12, 5)
-          ]
-      objRow = 1
-      objAdd = 0
-
-      userf _ _ x' _ _ f' _ _ _ _ _ _ _ _ _ = do
-        x0 <- peekElemOff x' 0
-        x1 <- peekElemOff x' 1
-        pokeElemOff f' 0 (x1)
-        pokeElemOff f' 1 (x0*x0 + 4*x1*x1)
-        pokeElemOff f' 2 ((x0 - 2)*(x0 - 2) + x1*x1)
-
-  userf' <- wrap userf
-  snX <- makeX x
-  snF <- makeF objRow objAdd f
-
-  let a = []
-      g = []
-  (snA,snG) <- makeAG a g
-
-  snJac workspace snX snF snA snG userf' >>= (putStrLn . ("snJac: info: " ++) . show)
-
-  setOptionI workspace "Derivative option" 0
-
-  snopta workspace snX snF snA snG userf' >>= (putStrLn . ("snopta: ret: " ++) . show)
-
 
 toy1 :: IO ()
 toy1 = do
-  workspace <- mallocWorkspace 500 10000 20000
-  snInit workspace
-
   let x = [ (1, (    0, 1e12))
           , (1, (-1e12, 1e12))
           ]
@@ -365,10 +470,31 @@ toy1 = do
           , (-1e12, 4)
           , (-1e12, 5)
           ]
-      objRow = 1
-      objAdd = 0
+      a = []
+      g = [ (1,1)
+          , (1,2)
+          , (2,1)
+          , (2,2)
+          , (3,1)
+          , (3,2)
+          ]
 
-      userfg _ _ x' needF _ f' needG _ g' _ _ _ _ _ _ = do
+      nx = length x
+      nf = length f
+      na = length a
+      ng = length g
+
+      xlow = map (fst . snd) x
+      xupp = map (snd . snd) x
+      xInit = map fst x
+
+      (flow,fupp) = unzip f
+      f0 = [0,0,0]
+
+      (iA,jA,aval) = unzip3 a
+      (iG,jG) = unzip g
+  
+  let userfg _ _ x' needF _ f' needG _ g' _ _ _ _ _ _ = do
         needF' <- peek needF
         needG' <- peek needG
         unless (needF' `elem` [0,1]) $ error "needF isn't 1 or 0"
@@ -390,17 +516,26 @@ toy1 = do
           pokeElemOff g' 4 (2*(x0-1))
           pokeElemOff g' 5 (2*x1)
   userf' <- wrap userfg
-  snX <- makeX x
-  snF <- makeF objRow objAdd f
 
-  let a = []
-      g = [ (1,1)
-          , (1,2)
-          , (2,1)
-          , (2,2)
-          , (3,1)
-          , (3,2)
-          ]
-  (snA,snG) <- makeAG a g
+  snopt <- mallocSnoptA 500 10000 20000 nx nf na ng userf'
+  snInit snopt
 
-  snopta workspace snX snF snA snG userf' >>= (putStrLn . ("snopta: ret: " ++) . show)
+  setXlow snopt xlow
+  setXupp snopt xupp
+  setX snopt xInit
+
+  setFlow snopt flow
+  setFupp snopt fupp
+  setF snopt f0
+
+  setObjRow snopt 1
+  setObjAdd snopt 0
+
+  setIAfun snopt iA
+  setJAvar snopt jA
+  setA snopt aval
+
+  setIGfun snopt iG
+  setJGvar snopt jG
+
+  snopta snopt >>= (putStrLn . ("snopta: ret: " ++) . show)
