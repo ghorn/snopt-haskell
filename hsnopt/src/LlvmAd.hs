@@ -1,9 +1,13 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# Language Rank2Types #-}
 
+module LlvmAd ( doMagic
+              , mkIOStub3
+              ) where
 
 import Control.Monad ( unless, when )
 import Data.Either ( partitionEithers )
+import Data.Hashable ( Hashable )
 import Foreign.Ptr
 import Foreign.Storable
 import qualified Data.Vector as V
@@ -34,18 +38,15 @@ whoAmI (EFractional (FromRational 0)) = Zero
 whoAmI (EFractional (FromRational c)) = Linear (fromRational c)
 whoAmI x = Nonlinear x
 
-doMagic ::
-  (forall s. Mode s => [AD s (Expr Double)] -> [AD s (Expr Double)])
-  -> [Expr Double]
-  -> IO ( FunGraph VList VList Double
-        , [((SnInteger,SnInteger), SnDoubleReal)]
+doMagic :: (Show a, Hashable a, Ord a, Real a, Fractional a) =>
+  (forall s. Mode s => [AD s (Expr a)] -> [AD s (Expr a)])
+  -> [Expr a]
+  -> IO ( FunGraph VList VList a
+        , [((SnInteger,SnInteger), a)]
         , [(SnInteger,SnInteger)]
         )
 doMagic f x = do
   let (f0,jac) = unzip $ jacobian' f x
-      myjac :: [[Expr Double]]
-      myjac = jac
-
       -- snopt is 1-indexed
       indices = [[(i,j) | j <- take (length x) [1..]] | i <- take (length f0) [1..]]
 
@@ -57,7 +58,7 @@ doMagic f x = do
       splitLinear [] (_:_) = error "splitLinear: list mismatch"
       splitLinear (_:_) [] = error "splitLinear: list mismatch"
   
-      (nljac, linjac) = partitionEithers $ splitLinear (concat myjac) (concat indices)
+      (nljac, linjac) = partitionEithers $ splitLinear (concat jac) (concat indices)
       (ijG,g) = unzip nljac
       ijxA = linjac
 

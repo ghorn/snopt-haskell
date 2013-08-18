@@ -14,7 +14,7 @@ import Foreign.C ( CInt(..), CDouble(..), CChar(..) )
 import Foreign.Ptr ( Ptr, FunPtr )
 
 type SnInteger = CInt
-type SnDoubleReal = CDouble
+type SnDoubleReal = Double -- CDouble
 type SnChar = CChar
 type SnFtnLen = CInt
 type SnRet = ()
