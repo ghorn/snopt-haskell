@@ -6,6 +6,7 @@
 module Nlp ( Nlp
            , (===)
            , (<==)
+           , leq3
            , minimize
            , designVar
            , solveNlp
@@ -115,7 +116,7 @@ minimize obj = do
 --                   , "    new val: " ++ show obj
                    ]
     ObjectiveUnset -> put $ set nlpObj (Objective obj) state0
-  
+
 
 toFun :: Num a => Nlp a () -> [a] -> [(Double,a,Double)]
 toFun nlp = f
@@ -131,30 +132,35 @@ toFun nlp = f
           constr (Eq2 lhs rhs) = (0, lhs - rhs, 0)
           constr (Ineq2 lhs rhs) = (-inf, lhs - rhs, 0)
           constr _ = error "don't be greedy now"
-        
+
 emptySymbolicNlp :: NlpState (Expr Double)
 emptySymbolicNlp = NlpState HM.empty S.empty S.empty ObjectiveUnset
                    (map (\k -> Dvda.sym ('x':show k)) [(0::Int)..] :: [Expr Double]) 0
 
 
-solveNlp :: (forall a. Floating a => Nlp a ()) -> IO ()
+solveNlp :: (forall a. Floating a => Nlp a ()) -> IO (Either String SnInteger)
 solveNlp nlp = do
   let (_,_,state) = build emptySymbolicNlp nlp
       middle xs = (\(_,x,_) -> x) $ unzip3 xs
       inputs = map Dvda.sym $ F.toList (state ^. nlpXNames) :: [Expr Double]
-      objRow = 1
-      objAdd = 0
       (flow,_,fupp) = unzip3 $ toFun nlp inputs
       fbnds = zip flow fupp
-  (fg, ijxA, ijG) <- doMagic (middle . toFun nlp) inputs
-  
-  workspace <- mallocWorkspace 500 10000 20000
-  snInit workspace
-  snX <- makeX (map (\_ -> (0,(-1e30,1e30))) inputs)
-  snF <- makeF objRow objAdd fbnds
-  (snA,snG) <- makeAG ijxA ijG
+      nx = length inputs
+      xlow = replicate nx (-1e30)
+      xupp = replicate nx (1e30)
+      xInit = replicate nx 0
+      f0 = replicate nf 0
+      nf = length fbnds
 
-  let runSnopt :: FunPtr () -> IO SnInteger
+  (fg, ijxA, ijG) <- doMagic (middle . toFun nlp) inputs
+
+  let (ijA,aval) = unzip ijxA
+      (iAfun,jAvar) = unzip ijA
+      (iGfun,jGvar) = unzip ijG
+      na = length ijA
+      ng = length ijG
+
+  let runSnopt :: FunPtr () -> IO (Either String SnInteger)
       runSnopt fp0 = do
         let fp = mkIOStub3 (castFunPtr fp0)
             userfg _ _ x' needF _ f' needG _ g' _ _ _ _ _ _ = do
@@ -166,8 +172,29 @@ solveNlp nlp = do
               _ <- fp (castPtr x') (castPtr f') (castPtr g')
               --_ <- fp (castPtr x') (castPtr f')
               return ()
-        userfg' <- wrap userfg
-        snopta workspace snX snF snA snG userfg'
+
+        runSnoptA 500 10000 20000 nx nf na ng userfg $ do
+          sninit
+          setXlow xlow
+          setXupp xupp
+          setX xInit
+
+          setFlow flow
+          setFupp fupp
+          setF f0
+
+          setObjRow 1
+          setObjAdd 0
+
+          setIAfun iAfun
+          setJAvar jAvar
+          setA aval
+
+          setIGfun iGfun
+          setJGvar jGvar
+          snopta "toy1"
 
   ret <- withLlvmJit fg runSnopt
-  putStrLn $ "final ret: " ++ show ret
+  return $ case ret of Left x -> Left x
+                       Right (Left x) -> Left x
+                       Right (Right x) -> Right x

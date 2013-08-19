@@ -15,7 +15,11 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
+  hs-source-dirs:      src
   exposed-modules:     Snopt
   other-modules:       Snopt.Internal
   build-depends:       base ==4.6.*,
-                       hsnopt-bindings
+                       hsnopt-bindings,
+                       transformers,
+                       mtl,
+                       lens

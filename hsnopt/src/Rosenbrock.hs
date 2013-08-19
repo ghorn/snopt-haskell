@@ -5,11 +5,12 @@ module Main where
 import Nlp
 
 main :: IO ()
-main = solveNlp $ do
-  x <- designVar "x"
-  y <- designVar "y"
-  minimize $ (1-x)**2 + 100*(y-x**2)**2
-
+main = do
+  ret <- solveNlp $ do
+    x <- designVar "x"
+    y <- designVar "y"
+    minimize $ (1-x)**2 + 100*(y-x**2)**2
+  print ret
 
 
 --myNlp :: Floating a => Nlp a ()

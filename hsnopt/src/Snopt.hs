@@ -5,6 +5,7 @@
 module Snopt ( SnoptA
              , SnDoubleReal
              , SnInteger
+             , runSnoptA
              , sninit
              , snseti
              , snjac
