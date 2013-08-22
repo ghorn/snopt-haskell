@@ -2,66 +2,66 @@
 {-# Language TemplateHaskell #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
-module Snopt ( SnoptA
-             , SnDoubleReal
-             , SnInteger
-             , runSnoptA
-             , sninit
-             , snseti
-             , snjac
-             , snopta
-               -- * getters/setters
-             , getXlow
-             , getXupp
-             , getX
-             , getXstate
-             , getXmul
+module Snopt.SnoptA ( SnoptA
+                    , SnDoubleReal
+                    , SnInteger
+                    , runSnoptA
+                    , sninit
+                    , snseti
+                    , snjac
+                    , snopta
+                      -- * getters/setters
+                    , getXlow
+                    , getXupp
+                    , getX
+                    , getXstate
+                    , getXmul
 
-             , setXlow
-             , setXupp
-             , setX
-             , setXstate
-             , setXmul
+                    , setXlow
+                    , setXupp
+                    , setX
+                    , setXstate
+                    , setXmul
 
-             , getFlow
-             , getFupp
-             , getFstate
-             , getFmul
-             , getF
-             , getObjRow
-             , getObjAdd
+                    , getFlow
+                    , getFupp
+                    , getFstate
+                    , getFmul
+                    , getF
+                    , getObjRow
+                    , getObjAdd
 
-             , setFlow
-             , setFupp
-             , setFstate
-             , setFmul
-             , setF
-             , setObjRow
-             , setObjAdd
+                    , setFlow
+                    , setFupp
+                    , setFstate
+                    , setFmul
+                    , setF
+                    , setObjRow
+                    , setObjAdd
 
-             , getIAfun
-             , getJAvar
-             , getA
+                    , getIAfun
+                    , getJAvar
+                    , getA
 
-             , setIAfun
-             , setJAvar
-             , setA
+                    , setIAfun
+                    , setJAvar
+                    , setA
 
-             , getIGfun
-             , getJGvar
+                    , getIGfun
+                    , getJGvar
 
-             , setIGfun
-             , setJGvar
+                    , setIGfun
+                    , setJGvar
 
-             , getIprint
-             , setIprint
+                    , getIprint
+                    , setIprint
 
-             , getIsummary
-             , setIsummary
+                    , getIsummary
+                    , setIsummary
 
-               -- * example
-             , toy1
-             ) where
+                      -- * example
+                    , toy1
+                    ) where
 
 import Control.Lens ( Getting, Accessor, (^.) )
 import Control.Monad ( unless, when )

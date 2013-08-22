@@ -3,17 +3,18 @@
 {-# Language TemplateHaskell #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
-module Nlp ( Nlp
-           , (===)
-           , (<==)
-           , leq3
-           , minimize
-           , designVar
-           , solveNlp
-           ) where
+module Snopt.Nlp ( Nlp
+                 , (===)
+                 , (<==)
+                 , leq3
+                 , minimize
+                 , designVar
+                 , solveNlp
+                 ) where
 
 import Control.Lens ( (^.), makeLenses, over, set )
 import Control.Monad ( unless, when )
+import Control.Monad.ST ( stToIO )
 import Control.Monad.Error ( ErrorT, MonadError, runErrorT )
 import Control.Monad.State ( State, MonadState, runState, get, put )
 import Control.Monad.Writer ( WriterT, MonadWriter, runWriterT )
@@ -21,22 +22,28 @@ import qualified Data.Foldable as F
 import qualified Data.HashMap.Lazy as HM
 import qualified Data.Sequence as S
 import Data.Sequence ( (|>) )
-import Foreign.Ptr
-import Foreign.Storable
+import Foreign.ForeignPtr ( newForeignPtr_ )
+import Foreign.Storable ( peek )
+import qualified Data.Vector as V
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Storable.Mutable as SVM
 
-import LlvmAd
-import Snopt
+import Snopt.AD ( makeFG )
+import Snopt.SnoptA
+import Snopt.Bindings( U_fp )
+import Snopt.LogsAndErrors
 
 import qualified Dvda
 import Dvda ( Expr )
-import Dvda.Llvm
+import Dvda.Alg
+import Dvda.RuntimeAlg
 
-import LogsAndErrors
-
---withEllipse :: Int -> String -> String
---withEllipse n blah
---  | length blah <= n = blah
---  | otherwise = take n blah ++ "..."
+--foreign import ccall "dynamic" mkIOStub3 ::
+--  FunPtr (Ptr Double -> Ptr Double -> Ptr Double -> IO Word32)
+--  -> Ptr Double -> Ptr Double -> Ptr Double -> IO Word32
+--foreign import ccall "dynamic" mkIOStub2 ::
+--  FunPtr (Ptr Double -> Ptr Double -> IO Word32)
+--  -> Ptr Double -> Ptr Double -> IO Word32
 
 data Objective a = ObjectiveUnset | Objective a
 
@@ -141,18 +148,21 @@ emptySymbolicNlp = NlpState HM.empty S.empty S.empty ObjectiveUnset
 solveNlp :: (forall a. Floating a => Nlp a ()) -> IO (Either String SnInteger)
 solveNlp nlp = do
   let (_,_,state) = build emptySymbolicNlp nlp
-      middle xs = (\(_,x,_) -> x) $ unzip3 xs
       inputs = map Dvda.sym $ F.toList (state ^. nlpXNames) :: [Expr Double]
-      (flow,_,fupp) = unzip3 $ toFun nlp inputs
+      middle = (\(_,fgs,_) -> fgs) . unzip3
+      (f0, g, ijxA, ijG) = makeFG (middle . toFun nlp) inputs
+
+  algF0 <- toAlg (V.fromList inputs) (V.fromList f0)
+  algG  <- toAlg (V.fromList inputs) (V.fromList g)
+
+  let (flow,_,fupp) = unzip3 $ (toFun nlp) inputs
       fbnds = zip flow fupp
       nx = length inputs
       xlow = replicate nx (-1e30)
       xupp = replicate nx (1e30)
       xInit = replicate nx 0
-      f0 = replicate nf 0
+      f0init = replicate nf 0
       nf = length fbnds
-
-  (fg, ijxA, ijG) <- doMagic (middle . toFun nlp) inputs
 
   let (ijA,aval) = unzip ijxA
       (iAfun,jAvar) = unzip ijA
@@ -160,19 +170,29 @@ solveNlp nlp = do
       na = length ijA
       ng = length ijG
 
-  let runSnopt :: FunPtr () -> IO (Either String SnInteger)
-      runSnopt fp0 = do
-        let fp = mkIOStub3 (castFunPtr fp0)
-            userfg _ _ x' needF _ f' needG _ g' _ _ _ _ _ _ = do
-              needF' <- peek needF
-              needG' <- peek needG
-              unless (needF' `elem` [0,1]) $ error "needF isn't 1 or 0"
-              unless (needG' `elem` [0,1]) $ error "needG isn't 1 or 0"
-              when (needF' == 1 || needG' == 1) $ do
-              _ <- fp (castPtr x') (castPtr f') (castPtr g')
-              --_ <- fp (castPtr x') (castPtr f')
-              return ()
+  let runF = runAlg' algF0
+      runG = runAlg' algG
+      userfg :: U_fp
+      userfg _ _ x' needF _ f' needG _ g' _ _ _ _ _ _ = do
+        xp <- newForeignPtr_ x'
+        fp <- newForeignPtr_ f'
+        gp <- newForeignPtr_ g'
 
+        let xvec =  SV.unsafeFromForeignPtr0 xp nx
+            fvec = SVM.unsafeFromForeignPtr0 fp nf
+            gvec = SVM.unsafeFromForeignPtr0 gp ng
+        needF' <- peek needF
+        needG' <- peek needG
+        unless (needF' `elem` [0,1]) $ error "needF isn't 1 or 0"
+        unless (needG' `elem` [0,1]) $ error "needG isn't 1 or 0"
+        when (needF' == 1) $ do
+          stToIO $ runF xvec fvec
+        when (needG' == 1) $ do
+          stToIO $ runG xvec gvec
+        return ()
+
+  let runSnopt :: IO (Either String SnInteger)
+      runSnopt = do
         runSnoptA 500 10000 20000 nx nf na ng userfg $ do
           sninit
           setXlow xlow
@@ -181,7 +201,7 @@ solveNlp nlp = do
 
           setFlow flow
           setFupp fupp
-          setF f0
+          setF f0init
 
           setObjRow 1
           setObjAdd 0
@@ -194,7 +214,4 @@ solveNlp nlp = do
           setJGvar jGvar
           snopta "toy1"
 
-  ret <- withLlvmJit fg runSnopt
-  return $ case ret of Left x -> Left x
-                       Right (Left x) -> Left x
-                       Right (Right x) -> Right x
+  runSnopt

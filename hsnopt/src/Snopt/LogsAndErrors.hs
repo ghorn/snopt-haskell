@@ -2,14 +2,14 @@
 {-# Language GeneralizedNewtypeDeriving #-}
 {-# Language FlexibleContexts #-}
 
-module LogsAndErrors ( ErrorMessage (..)
-                     , LogMessage (..)
-                     , countLogs
-                     , debug
-                     , warn
-                     , err
-                     , impossible
-                     ) where
+module Snopt.LogsAndErrors ( ErrorMessage (..)
+                           , LogMessage (..)
+                           , countLogs
+                           , debug
+                           , warn
+                           , err
+                           , impossible
+                           ) where
 
 import Control.Monad.Error ( Error, MonadError, throwError )
 import Control.Monad.Writer ( MonadWriter, tell )

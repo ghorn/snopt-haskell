@@ -16,10 +16,15 @@ cabal-version:       >=1.8
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Snopt
+  exposed-modules:     Snopt.AD
+                       Snopt.Nlp
+                       Snopt.SnoptA
+                       Snopt.LogsAndErrors
   other-modules:       Snopt.Internal
   build-depends:       base ==4.6.*,
                        hsnopt-bindings,
                        transformers,
                        mtl,
-                       lens
+                       lens,
+                       dvda,
+                       ad
