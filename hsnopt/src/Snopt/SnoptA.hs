@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# Language TemplateHaskell #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
 module Snopt.SnoptA ( SnoptA
@@ -302,7 +301,7 @@ toy1 = do
         when (needF' == 1) $ do
           x0 <- peekElemOff x' 0
           x1 <- peekElemOff x' 1
-          pokeElemOff f' 0 (x1)
+          pokeElemOff f' 0 x1
           pokeElemOff f' 1 (x0*x0 + 4*x1*x1)
           pokeElemOff f' 2 ((x0 - 2)*(x0 - 2) + x1*x1)
 

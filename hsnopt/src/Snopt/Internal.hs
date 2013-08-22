@@ -154,13 +154,13 @@ mallocX n = do
   xupp   <- newArray (replicate n 0)
   xstate <- newArray (replicate n 0)
   xmul   <- newArray (replicate n 0)
-  return $ SnX { _sx_nx = nx
-               , _sx_xlow = xlow
-               , _sx_xupp = xupp
-               , _sx_x = x
-               , _sx_xstate = xstate
-               , _sx_xmul = xmul
-               }
+  return SnX { _sx_nx = nx
+             , _sx_xlow = xlow
+             , _sx_xupp = xupp
+             , _sx_x = x
+             , _sx_xstate = xstate
+             , _sx_xmul = xmul
+             }
 
 freeX :: SnX -> IO ()
 freeX (SnX x0 x1 x2 x3 x4 x5) = do
@@ -182,15 +182,15 @@ mallocF n = do
   objrow <- new 1
   objadd <- new 0
 
-  return $ SnF { _sf_nF = nf
-               , _sf_flow = flow
-               , _sf_fupp = fupp
-               , _sf_fstate = fstate
-               , _sf_fmul = fmul
-               , _sf_f = f
-               , _sf_objRow = objrow
-               , _sf_objAdd = objadd
-               }
+  return SnF { _sf_nF = nf
+             , _sf_flow = flow
+             , _sf_fupp = fupp
+             , _sf_fstate = fstate
+             , _sf_fmul = fmul
+             , _sf_f = f
+             , _sf_objRow = objrow
+             , _sf_objAdd = objadd
+             }
 
 freeF :: SnF -> IO ()
 freeF (SnF f0 f1 f2 f3 f4 f5 f6 f7) = do
@@ -339,8 +339,8 @@ snopta (SnoptA' workspace
     nxname <- new nxname'
     nfname <- new nfname'
 
-    xnames <- mallocArray (8*(fromIntegral nxname'))
-    fnames <- mallocArray (8*(fromIntegral nfname'))
+    xnames <- mallocArray (8 * fromIntegral nxname')
+    fnames <- mallocArray (8 * fromIntegral nfname')
     start <- new 0
     ns <- malloc
     ninf <- malloc

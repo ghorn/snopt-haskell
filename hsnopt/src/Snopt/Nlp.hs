@@ -90,7 +90,7 @@ designVar name = do
 infix 4 ===
 (===) :: a -> a -> Nlp a ()
 (===) lhs rhs = do
-  debug $ "adding equality constraint: " -- ++
+  debug "adding equality constraint: " -- ++
     --withEllipse 30 (show lhs) ++ " == " ++ withEllipse 30 (show rhs)
   state0 <- get
   put $ over nlpConstraints (|> Eq2 lhs rhs) state0
@@ -98,26 +98,26 @@ infix 4 ===
 infix 4 <==
 (<==) :: a -> a -> Nlp a ()
 (<==) lhs rhs = do
-  debug $ "adding inequality constraint: " -- ++
+  debug  "adding inequality constraint: " -- ++
     -- withEllipse 30 (show lhs) ++ " <= " ++ withEllipse 30 (show rhs)
   state0 <- get
-  put $ over nlpConstraints (|> (Ineq2 lhs rhs)) state0
+  put $ over nlpConstraints (|> Ineq2 lhs rhs) state0
 
 leq3 :: a -> a -> a -> Nlp a ()
 leq3 lhs mid rhs = do
-  debug $ "adding inequality constraint bounds: " -- ++
+  debug "adding inequality constraint bounds: " -- ++
 --    withEllipse 30 (show lhs) ++ " <= " ++
 --    withEllipse 30 (show mid) ++ " <= " ++
 --    withEllipse 30 (show rhs)
   state0 <- get
-  put $ over nlpConstraints (|> (Ineq3 lhs mid rhs)) state0
+  put $ over nlpConstraints (|> Ineq3 lhs mid rhs) state0
 
 minimize :: a -> Nlp a ()
 minimize obj = do
-  debug $ "setting objective function: " -- ++ withEllipse 30 (show obj)
+  debug "setting objective function: " -- ++ withEllipse 30 (show obj)
   state0 <- get
   case state0 ^. nlpObj of
-    Objective _ -> err $ init $ unlines $
+    Objective _ -> err $ init $ unlines
                    [ "you set the objective function twice"
 --                   , "    old val: " ++ show x
 --                   , "    new val: " ++ show obj
@@ -130,7 +130,7 @@ toFun nlp = f
   where
     f x = case build (NlpState HM.empty S.empty S.empty ObjectiveUnset x 0) nlp of
       (Left er, logs, _) -> error (unlines (map show logs ++ ["NLP error: " ++ show er]))
-      (_, _, result) -> (0, obj, 0) : (map constr (F.toList (result ^. nlpConstraints)))
+      (_, _, result) -> (0, obj, 0) : map constr (F.toList (result ^. nlpConstraints))
         where
           obj = case result ^. nlpObj of
             (Objective obj') -> obj'
@@ -155,11 +155,11 @@ solveNlp nlp = do
   algF0 <- toAlg (V.fromList inputs) (V.fromList f0)
   algG  <- toAlg (V.fromList inputs) (V.fromList g)
 
-  let (flow,_,fupp) = unzip3 $ (toFun nlp) inputs
+  let (flow,_,fupp) = unzip3 $ toFun nlp inputs
       fbnds = zip flow fupp
       nx = length inputs
       xlow = replicate nx (-1e30)
-      xupp = replicate nx (1e30)
+      xupp = replicate nx 1e30
       xInit = replicate nx 0
       f0init = replicate nf 0
       nf = length fbnds
@@ -185,33 +185,29 @@ solveNlp nlp = do
         needG' <- peek needG
         unless (needF' `elem` [0,1]) $ error "needF isn't 1 or 0"
         unless (needG' `elem` [0,1]) $ error "needG isn't 1 or 0"
-        when (needF' == 1) $ do
-          stToIO $ runF xvec fvec
-        when (needG' == 1) $ do
-          stToIO $ runG xvec gvec
-        return ()
+        when (needF' == 1) $ stToIO $ runF xvec fvec
+        when (needG' == 1) $ stToIO $ runG xvec gvec
 
   let runSnopt :: IO (Either String SnInteger)
-      runSnopt = do
-        runSnoptA 500 10000 20000 nx nf na ng userfg $ do
-          sninit
-          setXlow xlow
-          setXupp xupp
-          setX xInit
+      runSnopt = runSnoptA 500 10000 20000 nx nf na ng userfg $ do
+        sninit
+        setXlow xlow
+        setXupp xupp
+        setX xInit
 
-          setFlow flow
-          setFupp fupp
-          setF f0init
+        setFlow flow
+        setFupp fupp
+        setF f0init
 
-          setObjRow 1
-          setObjAdd 0
+        setObjRow 1
+        setObjAdd 0
 
-          setIAfun iAfun
-          setJAvar jAvar
-          setA aval
+        setIAfun iAfun
+        setJAvar jAvar
+        setA aval
 
-          setIGfun iGfun
-          setJGvar jGvar
-          snopta "toy1"
+        setIGfun iGfun
+        setJGvar jGvar
+        snopta "toy1"
 
   runSnopt
