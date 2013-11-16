@@ -105,23 +105,21 @@ runSnoptA nc ni nr nx nf na ng ufp userSnoptA = do
 getArray :: Storable a =>
             ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
          -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
-         -> SnoptA [a]
+         -> SnoptA (SV.Vector a)
 getArray getXFAG getField = do
   snoptA <- ask
   let v = (snoptA ^. getXFAG) ^. getField
-  v' <- liftIO $ SVM.clone v >>= SV.freeze
-  return (SV.toList v')
+  liftIO $ SVM.clone v >>= SV.freeze
 
 setArray :: Storable a =>
             String
          -> ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
          -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
-         -> [a]
+         -> SV.Vector a
          -> SnoptA ()
-setArray name getXFAG getField userVec' = do
+setArray name getXFAG getField userVec = do
   snoptA <- ask
   let vec = snoptA ^. getXFAG ^. getField
-      userVec = SV.fromList userVec'
       trueLen = SVM.length vec
       userLen = SV.length userVec
   when (userLen /= trueLen) $
@@ -133,26 +131,25 @@ getArray' :: Storable a =>
              Getting (SVM.IOVector SnInteger) xfag (SVM.IOVector SnInteger)
           -> ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
           -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
-          -> SnoptA [a]
+          -> SnoptA (SV.Vector a)
 getArray' getN getXFAG getField = do
   snoptA <- ask
   let v = (snoptA ^. getXFAG) ^. getField
   n <- liftIO $ SVM.read ((snoptA ^. getXFAG) ^. getN) 0
   v' <- liftIO $ SVM.clone v >>= SV.freeze
-  return (SV.toList (SV.take (fromIntegral n) v'))
+  return (SV.take (fromIntegral n) v')
 
 setArray' :: Storable a =>
              String
           -> Getting (SVM.IOVector SnInteger) xfag (SVM.IOVector SnInteger)
           -> ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
           -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
-          -> [a]
+          -> (SV.Vector a)
           -> SnoptA ()
-setArray' name getN getXFAG getField userVec' = do
+setArray' name getN getXFAG getField userVec = do
   snoptA <- ask
   n <- liftIO $ SVM.read ((snoptA ^. getXFAG) ^. getN) 0
   let vec = snoptA ^. getXFAG ^. getField
-      userVec = SV.fromList userVec'
       trueLen = SVM.length vec
       userLen = SV.length userVec
   case userLen of
@@ -181,80 +178,80 @@ setScalar getXFAG getField val = do
   snoptA <- ask
   liftIO $ SVM.write ((snoptA ^. getXFAG) ^. getField) 0 val
 
-getXlow :: SnoptA [SnDoubleReal]
+getXlow :: SnoptA (SV.Vector SnDoubleReal)
 getXlow   = getArray Internal.sna_x Internal.sx_xlow
-getXupp :: SnoptA [SnDoubleReal]
+getXupp :: SnoptA (SV.Vector SnDoubleReal)
 getXupp   = getArray Internal.sna_x Internal.sx_xupp
-getX :: SnoptA [SnDoubleReal]
+getX :: SnoptA (SV.Vector SnDoubleReal)
 getX      = getArray Internal.sna_x Internal.sx_x
-getXstate :: SnoptA [SnInteger]
+getXstate :: SnoptA (SV.Vector SnInteger)
 getXstate = getArray Internal.sna_x Internal.sx_xstate
-getXmul :: SnoptA [SnDoubleReal]
+getXmul :: SnoptA (SV.Vector SnDoubleReal)
 getXmul   = getArray Internal.sna_x Internal.sx_xmul
 
-setXlow :: [SnDoubleReal] -> SnoptA ()
+setXlow :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setXlow   = setArray "xlow"   Internal.sna_x Internal.sx_xlow
-setXupp :: [SnDoubleReal] -> SnoptA ()
+setXupp :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setXupp   = setArray "xupp"   Internal.sna_x Internal.sx_xupp
-setX :: [SnDoubleReal] -> SnoptA ()
+setX :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setX      = setArray "x"      Internal.sna_x Internal.sx_x
-setXstate :: [SnInteger] -> SnoptA ()
+setXstate :: (SV.Vector SnInteger) -> SnoptA ()
 setXstate = setArray "xstate" Internal.sna_x Internal.sx_xstate
-setXmul :: [SnDoubleReal] -> SnoptA ()
+setXmul :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setXmul   = setArray "xmul  " Internal.sna_x Internal.sx_xmul
 
-getFlow :: SnoptA [SnDoubleReal]
+getFlow :: SnoptA (SV.Vector SnDoubleReal)
 getFlow   = getArray Internal.sna_f Internal.sf_flow
-getFupp :: SnoptA [SnDoubleReal]
+getFupp :: SnoptA (SV.Vector SnDoubleReal)
 getFupp   = getArray Internal.sna_f Internal.sf_fupp
-getFstate :: SnoptA [SnInteger]
+getFstate :: SnoptA (SV.Vector SnInteger)
 getFstate = getArray Internal.sna_f Internal.sf_fstate
-getFmul :: SnoptA [SnDoubleReal]
+getFmul :: SnoptA (SV.Vector SnDoubleReal)
 getFmul   = getArray Internal.sna_f Internal.sf_fmul
-getF :: SnoptA [SnDoubleReal]
+getF :: SnoptA (SV.Vector SnDoubleReal)
 getF      = getArray Internal.sna_f Internal.sf_f
 getObjRow :: SnoptA SnInteger
 getObjRow = getScalar Internal.sna_f Internal.sf_objRow
 getObjAdd :: SnoptA SnDoubleReal
 getObjAdd = getScalar Internal.sna_f Internal.sf_objAdd
 
-setFlow :: [SnDoubleReal] -> SnoptA ()
+setFlow :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setFlow   = setArray "flow"   Internal.sna_f Internal.sf_flow
-setFupp :: [SnDoubleReal] -> SnoptA ()
+setFupp :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setFupp   = setArray "fupp"   Internal.sna_f Internal.sf_fupp
-setFstate :: [SnInteger] -> SnoptA ()
+setFstate :: (SV.Vector SnInteger) -> SnoptA ()
 setFstate = setArray "fstate" Internal.sna_f Internal.sf_fstate
-setFmul :: [SnDoubleReal] -> SnoptA ()
+setFmul :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setFmul   = setArray "fmul"   Internal.sna_f Internal.sf_fmul
-setF :: [SnDoubleReal] -> SnoptA ()
+setF :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setF      = setArray "f"      Internal.sna_f Internal.sf_f
 setObjRow :: SnInteger -> SnoptA ()
 setObjRow = setScalar Internal.sna_f Internal.sf_objRow
 setObjAdd :: SnDoubleReal -> SnoptA ()
 setObjAdd = setScalar Internal.sna_f Internal.sf_objAdd
 
-getIAfun :: SnoptA [SnInteger]
+getIAfun :: SnoptA (SV.Vector SnInteger)
 getIAfun = getArray'  Internal.sa_neA Internal.sna_a  Internal.sa_iAfun
-getJAvar :: SnoptA [SnInteger]
+getJAvar :: SnoptA (SV.Vector SnInteger)
 getJAvar = getArray'  Internal.sa_neA Internal.sna_a  Internal.sa_jAvar
-getA :: SnoptA [SnDoubleReal]
+getA :: SnoptA (SV.Vector SnDoubleReal)
 getA     = getArray'  Internal.sa_neA Internal.sna_a  Internal.sa_a
 
-setIAfun :: [SnInteger] -> SnoptA ()
+setIAfun :: (SV.Vector SnInteger) -> SnoptA ()
 setIAfun = setArray' "iAfun"  Internal.sa_neA Internal.sna_a  Internal.sa_iAfun
-setJAvar :: [SnInteger] -> SnoptA ()
+setJAvar :: (SV.Vector SnInteger) -> SnoptA ()
 setJAvar = setArray' "jAvar"  Internal.sa_neA Internal.sna_a  Internal.sa_jAvar
-setA :: [SnDoubleReal] -> SnoptA ()
+setA :: (SV.Vector SnDoubleReal) -> SnoptA ()
 setA     = setArray' "A"      Internal.sa_neA Internal.sna_a  Internal.sa_a
 
-getIGfun :: SnoptA [SnInteger]
+getIGfun :: SnoptA (SV.Vector SnInteger)
 getIGfun = getArray'  Internal.sg_neG Internal.sna_g  Internal.sg_iGfun
-getJGvar :: SnoptA [SnInteger]
+getJGvar :: SnoptA (SV.Vector SnInteger)
 getJGvar = getArray'  Internal.sg_neG Internal.sna_g  Internal.sg_jGvar
 
-setIGfun :: [SnInteger] -> SnoptA ()
+setIGfun :: (SV.Vector SnInteger) -> SnoptA ()
 setIGfun = setArray' "iGfun"  Internal.sg_neG Internal.sna_g  Internal.sg_iGfun
-setJGvar :: [SnInteger] -> SnoptA ()
+setJGvar :: (SV.Vector SnInteger) -> SnoptA ()
 setJGvar = setArray' "jGvar"  Internal.sg_neG Internal.sna_g  Internal.sg_jGvar
 
 getInfo :: SnoptA SnInteger
@@ -378,22 +375,22 @@ toy1 = do
   ret <- runSnoptA 500 10000 20000 nx nf na ng userfg $ do
     sninit
 
-    setXlow xlow
-    setXupp xupp
-    setX xInit
+    setXlow $ SV.fromList xlow
+    setXupp $ SV.fromList xupp
+    setX $ SV.fromList xInit
 
-    setFlow flow
-    setFupp fupp
-    setF f0
+    setFlow $ SV.fromList flow
+    setFupp $ SV.fromList fupp
+    setF $ SV.fromList f0
 
     setObjRow 1
     setObjAdd 0
 
-    setIAfun iA
-    setJAvar jA
-    setA aval
+    setIAfun $ SV.fromList iA
+    setJAvar $ SV.fromList jA
+    setA $ SV.fromList aval
 
-    setIGfun iG
-    setJGvar jG
+    setIGfun $ SV.fromList iG
+    setJGvar $ SV.fromList jG
     snopta "toy1"
   putStrLn $ "snopta: " ++ show ret
