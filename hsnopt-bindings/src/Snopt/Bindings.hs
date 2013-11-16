@@ -10,7 +10,7 @@ module Snopt.Bindings ( SnInteger, SnDoubleReal, SnChar, SnFtnLen, U_fp
                       , wrap
                       ) where
 
-import Foreign.C ( CInt(..), CDouble(..), CChar(..) )
+import Foreign.C ( CInt(..), CChar(..) )
 import Foreign.Ptr ( Ptr, FunPtr )
 
 type SnInteger = CInt
