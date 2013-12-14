@@ -1,64 +1,65 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# Language TemplateHaskell #-}
 
-module Snopt.Internal ( -- * types
-                        SnoptA'
-                      , newSnoptA
-                        -- * the functions
-                      , sninit
-                      , snseti
-                      , snjac
-                      , snopta
-                        -- * extra
-                      , wrap
-                        -- * lenses
-                      , sx_nx
-                      , sx_xlow
-                      , sx_xupp
-                      , sx_x
-                      , sx_xstate
-                      , sx_xmul
+module Snopt.Internal
+       ( -- * types
+         SnoptA'
+       , newSnoptA
+         -- * the functions
+       , sninit
+       , snseti
+       , snjac
+       , snopta
+         -- * extra
+       , wrap
+         -- * lenses
+       , sx_nx
+       , sx_xlow
+       , sx_xupp
+       , sx_x
+       , sx_xstate
+       , sx_xmul
 
-                      , sf_nF
-                      , sf_flow
-                      , sf_fupp
-                      , sf_fstate
-                      , sf_fmul
-                      , sf_f
-                      , sf_objRow
-                      , sf_objAdd
+       , sf_nF
+       , sf_flow
+       , sf_fupp
+       , sf_fstate
+       , sf_fmul
+       , sf_f
+       , sf_objRow
+       , sf_objAdd
 
-                      , sa_iAfun
-                      , sa_jAvar
-                      , sa_a
-                      , sa_lenA
-                      , sa_neA
+       , sa_iAfun
+       , sa_jAvar
+       , sa_a
+       , sa_lenA
+       , sa_neA
 
-                      , sg_iGfun
-                      , sg_jGvar
-                      , sg_lenG
-                      , sg_neG
+       , sg_iGfun
+       , sg_jGvar
+       , sg_lenG
+       , sg_neG
 
-                      , sm_info
-                      , sm_mincw
-                      , sm_miniw
-                      , sm_minrw
-                      , sm_iprint
-                      , sm_isummary
-                      , sm_start
-                      , sm_ns
-                      , sm_ninf
-                      , sm_sinf
-                      , sm_errors
+       , sm_info
+       , sm_mincw
+       , sm_miniw
+       , sm_minrw
+       , sm_iprint
+       , sm_isummary
+       , sm_start
+       , sm_ns
+       , sm_ninf
+       , sm_sinf
+       , sm_errors
 
-                      , sna_ws
-                      , sna_x
-                      , sna_f
-                      , sna_a
-                      , sna_g
-                      , sna_m
-                      , sna_ufp
-                      ) where
+       , sna_ws
+       , sna_x
+       , sna_f
+       , sna_a
+       , sna_g
+       , sna_m
+       , sna_ufp
+       ) where
 
 import Control.Lens ( makeLenses )
 import Control.Lens.Getter
