@@ -1,14 +1,15 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
-module Snopt.Bindings ( SnInteger, SnDoubleReal, SnChar, SnFtnLen, U_fp
-                      , c_sninit_
-                      , c_snjac_
-                      , c_snopta_
-                      , c_snseti_
-                      , c_snsetr_
-                      , wrap
-                      ) where
+module Snopt.FFI
+       ( SnInteger, SnDoubleReal, SnChar, SnFtnLen, U_fp
+       , c_sninit_
+       , c_snjac_
+       , c_snopta_
+       , c_snseti_
+       , c_snsetr_
+       , wrap
+       ) where
 
 import Foreign.C ( CInt(..), CChar(..) )
 import Foreign.Ptr ( Ptr, FunPtr )

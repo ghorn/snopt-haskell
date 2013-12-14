@@ -68,7 +68,7 @@ import Foreign.Ptr ( FunPtr, Ptr )
 import Foreign.Marshal
 import Foreign.Storable
 
-import Snopt.Bindings
+import Snopt.FFI
 
 type Vec = SVM.IOVector
 

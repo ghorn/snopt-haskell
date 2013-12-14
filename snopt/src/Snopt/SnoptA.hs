@@ -84,7 +84,7 @@ import Foreign.Storable
 import qualified Data.Vector.Storable as SV
 import qualified Data.Vector.Storable.Mutable as SVM
 
-import Snopt.Bindings
+import Snopt.FFI
 import qualified Snopt.Internal as Internal
 import Snopt.Internal ( SnoptA', newSnoptA )
 

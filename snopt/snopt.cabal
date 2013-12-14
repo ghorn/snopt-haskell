@@ -1,6 +1,6 @@
-name:                hsnopt
+name:                snopt
 version:             0.1.0.0
--- synopsis:            
+synopsis:            high-level bindings to SNOPT
 -- description:         
 license:             BSD3
 license-file:        LICENSE
@@ -16,7 +16,7 @@ library
   exposed-modules:     Snopt.SnoptA
   other-modules:       Snopt.Internal
   build-depends:       base ==4.6.*,
-                       hsnopt-bindings,
+                       snopt-base,
                        vector,
                        transformers,
                        mtl,

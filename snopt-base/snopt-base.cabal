@@ -1,6 +1,6 @@
-name:                hsnopt-bindings
+name:                snopt-base
 version:             0.1.0.0
--- synopsis:            
+synopsis:            low-level bindings to SNOPT
 -- description:         
 license:             BSD3
 license-file:        LICENSE
@@ -23,7 +23,7 @@ cabal-version:       >=1.8
 --executable testSnopt
 --  main-is: Snopt/Bindings.hs
 library
-  exposed-modules:     Snopt.Bindings
+  exposed-modules:     Snopt.FFI
   hs-source-dirs: src
 
   build-depends:       base ==4.6.*
