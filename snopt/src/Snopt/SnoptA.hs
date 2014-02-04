@@ -75,7 +75,7 @@ module Snopt.SnoptA
        , toy1
        ) where
 
-import Control.Lens ( Getting, Accessor, (^.) )
+import Control.Lens ( Getting, (^.) )
 import Control.Monad ( unless, when )
 import Control.Monad.Error ( ErrorT, MonadError, runErrorT, throwError )
 import Control.Monad.Reader ( ReaderT, MonadReader, runReaderT, ask )
@@ -104,7 +104,7 @@ runSnoptA nc ni nr nx nf na ng ufp userSnoptA = do
 
 --------------------------- setters/getters ----------------------------
 getArray :: Storable a =>
-            ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
+            Getting xfag (SnoptA' SVM.IOVector) xfag
          -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
          -> SnoptA (SV.Vector a)
 getArray getXFAG getField = do
@@ -114,7 +114,7 @@ getArray getXFAG getField = do
 
 setArray :: Storable a =>
             String
-         -> ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
+         -> Getting xfag (SnoptA' SVM.IOVector) xfag
          -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
          -> SV.Vector a
          -> SnoptA ()
@@ -130,7 +130,7 @@ setArray name getXFAG getField userVec = do
 -- these are vectors which must be length > 0
 getArray' :: Storable a =>
              Getting (SVM.IOVector SnInteger) xfag (SVM.IOVector SnInteger)
-          -> ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
+          -> Getting xfag (SnoptA' SVM.IOVector) xfag
           -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
           -> SnoptA (SV.Vector a)
 getArray' getN getXFAG getField = do
@@ -143,7 +143,7 @@ getArray' getN getXFAG getField = do
 setArray' :: Storable a =>
              String
           -> Getting (SVM.IOVector SnInteger) xfag (SVM.IOVector SnInteger)
-          -> ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
+          -> Getting xfag (SnoptA' SVM.IOVector) xfag
           -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
           -> (SV.Vector a)
           -> SnoptA ()
@@ -163,7 +163,7 @@ setArray' name getN getXFAG getField userVec = do
       liftIO $ SV.copy vec userVec
 
 getScalar :: Storable a =>
-             ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
+             Getting xfag (SnoptA' SVM.IOVector) xfag
           -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
           -> SnoptA a
 getScalar getXFAG getField = do
@@ -171,7 +171,7 @@ getScalar getXFAG getField = do
   liftIO $ SVM.read ((snoptA ^. getXFAG) ^. getField) 0
 
 setScalar :: Storable a =>
-             ((xfag -> Accessor xfag xfag) -> SnoptA' SVM.IOVector -> Accessor xfag (SnoptA' SVM.IOVector))
+             Getting xfag (SnoptA' SVM.IOVector) xfag
           -> Getting (SVM.IOVector a) xfag (SVM.IOVector a)
           -> a
           -> SnoptA ()
