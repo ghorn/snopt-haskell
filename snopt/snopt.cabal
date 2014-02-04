@@ -15,7 +15,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Snopt.SnoptA
   other-modules:       Snopt.Internal
-  build-depends:       base ==4.6.*,
+  build-depends:       base >= 4.6 && <4.8,
                        snopt-base,
                        vector,
                        transformers,

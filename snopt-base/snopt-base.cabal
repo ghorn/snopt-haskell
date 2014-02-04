@@ -26,7 +26,7 @@ library
   exposed-modules:     Snopt.FFI
   hs-source-dirs: src
 
-  build-depends:       base ==4.6.*
+  build-depends:       base >= 4.6 && <4.8
 
 --  Ghc-options: -O2 -fPIC
 --  Ghc-options: -fsimpl-tick-factor=500
