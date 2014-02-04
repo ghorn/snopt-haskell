@@ -76,6 +76,7 @@ module Snopt.SnoptA
        ) where
 
 import Control.Lens ( Getting, (^.) )
+import Control.Applicative ( Applicative )
 import Control.Monad ( unless, when )
 import Control.Monad.Error ( ErrorT, MonadError, runErrorT, throwError )
 import Control.Monad.Reader ( ReaderT, MonadReader, runReaderT, ask )
@@ -90,7 +91,9 @@ import qualified Snopt.Internal as Internal
 import Snopt.Internal ( SnoptA', newSnoptA )
 
 newtype SnoptA a = SnoptA { toSnoptA :: ErrorT String (ReaderT (SnoptA' SVM.IOVector) IO) a }
-                 deriving ( Monad
+                 deriving ( Functor
+                          , Applicative
+                          , Monad
                           , MonadIO
                           , MonadError String
                           , MonadReader (SnoptA' SVM.IOVector)
