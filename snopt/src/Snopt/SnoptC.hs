@@ -242,7 +242,7 @@ snset convert c_set cw iw rw iprint isumm name value = do
     VM.unsafeWith rw $ \rw' ->
     c_set name' value' iprint' isumm' errors'
     cw' lencw' iw' leniw' rw' lenrw'
-    (fromIntegral bufferlen) lencw8
+    (fromIntegral bufferlen) (fromIntegral lencw8)
   errors <- peek errors'
 
   free errors'

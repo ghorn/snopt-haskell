@@ -14,13 +14,13 @@ module Snopt.FFI
        , wrapC
        ) where
 
-import Foreign.C ( CInt(..), CChar(..) )
+import Foreign.C ( CInt(..), CLong(..), CChar(..) )
 import Foreign.Ptr ( Ptr, FunPtr )
 
 type SnInteger = CInt
 type SnDoubleReal = Double -- CDouble
 type SnChar = CChar
-type SnFtnLen = CInt
+type SnFtnLen = CLong
 type SnRet = ()
 
 type UsrfunC = Ptr SnInteger   --  ( integer *mode

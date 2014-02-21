@@ -257,7 +257,7 @@ sninit' ws misc =
   unsafeWithW ws $ \(Workspace cw iw rw lencw leniw lenrw) ->
   unsafeWithM misc $ \(SnM {_sm_iprint = iprint, _sm_isummary = isummary }) -> do
     cw_len <- peek lencw
-    c_sninit_ iprint isummary cw lencw iw leniw rw lenrw (cw_len*8)
+    c_sninit_ iprint isummary cw lencw iw leniw rw lenrw (fromIntegral (cw_len*8))
 
 sninit :: SnoptA' Vec -> IO ()
 sninit sna = sninit' (sna ^. sna_ws ) (sna ^. sna_m)
@@ -274,7 +274,7 @@ snseti' ws misc name value =
     c_snseti_
       name' value' iprint isummary errors'
       cw lencw iw leniw rw lenrw
-      (fromIntegral bufferlen) (8*cw_len)
+      (fromIntegral bufferlen) (fromIntegral (8*cw_len))
     errors <- peek errors'
 
     free errors'
@@ -384,7 +384,7 @@ snjac' (SnoptA' workspace
     x xlow xupp mincw miniw minrw
     cu lencu iu leniu ru lenru
     cw lencw iw leniw rw lenrw
-    (8*cu_len) (8*cw_len)
+    (fromIntegral (8*cu_len)) (fromIntegral (8*cw_len))
 
 snopta :: SnoptA' Vec -> String -> IO ()
 snopta sna = unsafeWithSnoptA' sna . flip snopta'
@@ -426,7 +426,7 @@ snopta' (SnoptA' workspace
       ns ninf sinf
       cu lencu iu leniu ru lenru
       cw lencw iw leniw rw lenrw
-      (fromIntegral prob_len) (8*nxname') (8*nfname') (8*cu_len') (8*cw_len')
+      (fromIntegral prob_len) (fromIntegral (8*nxname')) (fromIntegral (8*nfname')) (fromIntegral (8*cu_len')) (fromIntegral (8*cw_len'))
 
     free nxname
     free nfname
