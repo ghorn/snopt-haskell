@@ -13,7 +13,8 @@ cabal-version:       >=1.8
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Snopt.SnoptA
+  exposed-modules:     Snopt.SnoptA,
+                       Snopt.SnoptC
   other-modules:       Snopt.Internal
   build-depends:       base >= 4.6 && <4.8,
                        snopt-base,
