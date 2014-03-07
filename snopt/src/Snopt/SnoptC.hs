@@ -111,7 +111,7 @@ snoptc :: String -- Ptr SnChar -- char *start
        -> IOVector SnDoubleReal -- doublereal rw[lenrw]
        -> IO ((Vector Double, Vector Double, Vector Double, Vector CInt),
               (CInt,CInt,CInt,CInt,CInt,CInt,Double,Double))
-snoptc start m n ne nnCon nnObj nnJac iObj objAdd prob hsUsrfun
+snoptc start m n ne nnCon nnObj nnJac iObj objAdd prob0 hsUsrfun
   jCol indJ locJ bl bu hs0 x0 pi0
   cw iw rw = do
     unless (m > 0) $ error $ "snoptc: m must be > 0, your m == " ++ show m
@@ -138,6 +138,10 @@ snoptc start m n ne nnCon nnObj nnJac iObj objAdd prob hsUsrfun
         nName = 1 :: Int
         startLen = length start
         probLen = 8
+        lenProb0 = length prob0
+        prob
+          | lenProb0 > 8 = take 8 prob0
+          | otherwise = (replicate (8 - lenProb0) ' ') ++ prob0
 
     info <- new 0
     mincw <- new 0
@@ -166,7 +170,7 @@ snoptc start m n ne nnCon nnObj nnJac iObj objAdd prob hsUsrfun
 
       with (realToFrac objAdd) $ \objAdd' ->
 
-      withCString (take 8 (prob ++ (repeat ' '))) $ \prob' ->
+      withCString prob $ \prob' ->
 
       V.unsafeWith (V.map realToFrac jCol) $ \jCol' ->
       V.unsafeWith (V.map fromIntegral indJ) $ \indJ' ->
