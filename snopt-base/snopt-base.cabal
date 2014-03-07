@@ -32,7 +32,7 @@ library
 --  Ghc-options: -fsimpl-tick-factor=500
 --  Extra-libraries: snopt_c snprint_c blas_c
 --  Extra-libraries: snopt snprint blas
-  Extra-libraries: snopt snprint snopt_blas
+  Extra-libraries: snopt7 snprint7 snblas
 --  Ghc-options: -pgml icpc
 --  Ghc-options: -optl-lsnopt -optl-lsnprint -optl-lsnopt_blas
 --  Ghc-options: -optl-L/opt/intel/composer_xe_2013.1.117/compiler/lib/intel64
